@@ -1,0 +1,31 @@
+{
+  "name": "dayz-aio",
+  "private": true,
+  "version": "0.4.1-beta-hardening",
+  "description": "DayZ AIO Server Manager - modular DayZ Standalone control plane",
+  "workspaces": [
+    "apps/backend",
+    "apps/frontend",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev:backend": "pnpm --filter @dayz-aio/backend run dev",
+    "dev:frontend": "pnpm --filter @dayz-aio/frontend run dev",
+    "build": "pnpm -r run build",
+    "dev": "concurrently -n backend,frontend -c blue,green \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
+    "doctor:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/doctor.ps1",
+    "install:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/install.ps1",
+    "smoke:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/smoke-test.ps1",
+    "build:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/build.ps1",
+    "start:windows:prod": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/start-production.ps1",
+    "reset:runtime-db:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/reset-runtime-db.ps1",
+    "test": "pnpm --filter @dayz-aio/backend run test"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "packageManager": "pnpm@9.15.9"
+}

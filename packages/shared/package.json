@@ -1,0 +1,13 @@
+{
+  "name": "@dayz-aio/shared",
+  "version": "0.4.1-beta-hardening",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  }
+}

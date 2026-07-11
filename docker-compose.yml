@@ -1,0 +1,29 @@
+services:
+  dayz-aio-backend:
+    build:
+      context: ./apps/backend
+    container_name: dayz-aio-backend
+    ports:
+      - "8090:8090"
+    env_file:
+      - ./apps/backend/.env
+    volumes:
+      - ./data:/app/data
+      - ./dayz-server:/dayz-server
+    environment:
+      PORT: "8090"
+      HOST: "0.0.0.0"
+      DATA_DIR: "/app/data"
+      DAYZ_ROOT: "/dayz-server"
+      DAYZ_AIO_CORS_ORIGINS: "http://localhost:3100,http://127.0.0.1:3100"
+    restart: unless-stopped
+
+  dayz-aio-frontend:
+    build:
+      context: ./apps/frontend
+    container_name: dayz-aio-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - dayz-aio-backend
+    restart: unless-stopped
