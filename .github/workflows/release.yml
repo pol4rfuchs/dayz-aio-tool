@@ -1,14 +1,5 @@
 name: Release
 
-# Triggered by pushing a tag like v0.4.2 - builds, verifies, packages the
-# source tree with git archive (matching the source-only zips you currently
-# build by hand), and publishes a GitHub Release with the matching
-# docs/IMPLEMENTED_vX.Y.Z_*.md file as the release body.
-#
-# Usage:
-#   git tag v0.4.2
-#   git push origin v0.4.2
-
 on:
   push:
     tags:
@@ -16,6 +7,11 @@ on:
 
 permissions:
   contents: write
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+  NODE_VERSION: "20.20.2"
+  PNPM_VERSION: "9.15.9"
 
 jobs:
   release:
@@ -27,16 +23,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Enforce pnpm lockfile for releases
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "::error::package-lock.json must not be present in a pnpm release."
+            exit 1
+          fi
+          if [ ! -f pnpm-lock.yaml ]; then
+            echo "::error::pnpm-lock.yaml is required for releases. Run Generate pnpm Lockfile and commit the result before tagging."
+            exit 1
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9.15.9
+          version: ${{ env.PNPM_VERSION }}
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20.20.2
         uses: actions/setup-node@v4
         with:
-          node-version: "20.x"
-          cache: "pnpm"
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -49,6 +56,7 @@ jobs:
 
       - name: Derive version from tag
         id: version
+        shell: bash
         run: |
           tag="${GITHUB_REF_NAME}"
           version="${tag#v}"
@@ -56,6 +64,7 @@ jobs:
 
       - name: Locate matching IMPLEMENTED changelog
         id: changelog
+        shell: bash
         run: |
           version="${{ steps.version.outputs.version }}"
           doc=$(ls docs/IMPLEMENTED_v${version}_*.md 2>/dev/null | head -n 1 || true)
@@ -71,7 +80,7 @@ jobs:
             echo "EOF_CHANGELOG"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Package source archive (matches current manual zip format)
+      - name: Package source archive
         run: |
           version="${{ steps.version.outputs.version }}"
           git archive --format=zip --prefix=dayz-aio/ -o "dayz-aio-v${version}.zip" HEAD

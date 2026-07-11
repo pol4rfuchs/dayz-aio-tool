@@ -1,8 +1,8 @@
 name: Native Module Rebuild Check
 
-# Verifies that better-sqlite3's native binding actually builds and loads
-# on every OS/Node combination the portable Node.js 20 bootstrap can hand
-# out, instead of only discovering a mismatch when a user's DB init fails.
+# Verifies that better-sqlite3's native binding builds and loads under the
+# supported runtime. DayZ AIO intentionally supports Node 20.x only on Windows
+# because the local portable runtime and native ABI are pinned to Node 20.
 
 on:
   push:
@@ -11,14 +11,18 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+  NODE_VERSION: "20.20.2"
+  PNPM_VERSION: "9.15.9"
+
 jobs:
   rebuild-check:
-    name: better-sqlite3 on ${{ matrix.os }} / Node ${{ matrix.node-version }}
+    name: better-sqlite3 on ${{ matrix.os }} / Node 20.20.2
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
-        node-version: ["20.x", "22.x"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -27,18 +31,22 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9.15.9
+          version: ${{ env.PNPM_VERSION }}
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20.20.2
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install backend dependencies (triggers native build)
-        working-directory: apps/backend
-        run: pnpm install --frozen-lockfile
+      - name: Install workspace dependencies (triggers native build)
+        shell: bash
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            echo "::warning::pnpm-lock.yaml is missing. Running --no-frozen-lockfile for this transitional branch."
+            pnpm install --no-frozen-lockfile
+          fi
 
       - name: Verify better-sqlite3 loads and can query
-        working-directory: apps/backend
-        run: |
-          node -e "const db = require('better-sqlite3')(':memory:'); db.prepare('SELECT 1 AS ok').get(); console.log('better-sqlite3 OK on', process.version, process.platform, process.arch);"
+        run: pnpm --filter @dayz-aio/backend exec node -e "const db = require('better-sqlite3')(':memory:'); db.prepare('SELECT 1 AS ok').get(); console.log('better-sqlite3 OK on', process.version, process.platform, process.arch);"

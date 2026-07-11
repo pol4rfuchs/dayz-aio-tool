@@ -332,3 +332,8 @@ Adds Community Ops, Content Tools, Wipe Management, DZSALModServer detection, Da
 ## v0.4.3 Green Security + DZSA Cleanup
 
 Fixes the v0.4.2 review findings: explicit Steam Web API key masking and a single shared DZSALModServer detector used by both Community Ops and Readiness. See `docs/IMPLEMENTED_v0.4.3_GREEN_SECURITY_DZSA_CLEANUP.md`.
+
+
+## v0.4.6 CI Node20 Lockfile Actions Fix
+
+GitHub Actions are pinned to Node.js 20.20.2 with `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true` while the Windows native dependency path remains on the Node 20 ABI. Use the manual `Generate pnpm Lockfile` workflow once to create `pnpm-lock.yaml` and remove stale `package-lock.json`. See `docs/CI_NODE20_LOCKFILE.md`.

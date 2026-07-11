@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/backend",
-  "version": "0.4.5-windows-runtime-consistency",
+  "version": "0.4.6-ci-node20-lockfile-actions-fix",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

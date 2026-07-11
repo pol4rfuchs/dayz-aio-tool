@@ -1,15 +1,15 @@
 name: Windows Installer Smoke Test
 
-# This is the workflow that would have caught the v0.2.10-v0.2.12 npm/pnpm
-# bootstrap failures (RandomNumberGenerator.Fill, npm cache corruption,
-# workspace fallback) before they reached a real Windows tester.
-
 on:
   push:
     branches: [main, master]
   pull_request:
     branches: [main, master]
   workflow_dispatch:
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+  DAYZ_AIO_NODE20_VERSION: "20.20.2"
 
 jobs:
   windows-install-smoke:
@@ -19,9 +19,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Assert no stale npm lockfile
+        shell: pwsh
+        run: |
+          if (Test-Path "package-lock.json") { throw "package-lock.json is stale. This repo uses pnpm; remove it." }
+
       - name: Run install-windows.bat
         shell: cmd
         run: install-windows.bat
+
+      - name: Verify selected Node runtime is exactly 20.x
+        shell: pwsh
+        run: |
+          $nodeVersion = (& node -p "process.versions.node").Trim()
+          if (-not $nodeVersion.StartsWith("20.")) { throw "Expected Node 20.x after installer bootstrap, got $nodeVersion" }
+          Write-Host "Node runtime OK: $nodeVersion"
 
       - name: Verify apps/backend/.env was generated with strong secrets
         shell: pwsh
@@ -39,10 +51,6 @@ jobs:
 
       - name: Run smoke-test-windows.bat
         shell: cmd
-        # No real DayZ install / SteamCMD / Workshop credentials exist on the
-        # CI runner, so DayZ-specific checks are expected to warn or fail.
-        # This step still catches backend/frontend boot failures, port binds,
-        # and route registration errors.
         continue-on-error: true
         run: smoke-test-windows.bat
 
