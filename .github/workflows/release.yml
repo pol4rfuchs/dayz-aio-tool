@@ -1,0 +1,84 @@
+name: Release
+
+# Triggered by pushing a tag like v0.4.2 - builds, verifies, packages the
+# source tree with git archive (matching the source-only zips you currently
+# build by hand), and publishes a GitHub Release with the matching
+# docs/IMPLEMENTED_vX.Y.Z_*.md file as the release body.
+#
+# Usage:
+#   git tag v0.4.2
+#   git push origin v0.4.2
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, verify and publish release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all workspaces
+        run: pnpm -r run build
+
+      - name: Run backend test suite
+        run: pnpm --filter @dayz-aio/backend test
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Locate matching IMPLEMENTED changelog
+        id: changelog
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          doc=$(ls docs/IMPLEMENTED_v${version}_*.md 2>/dev/null | head -n 1 || true)
+          if [ -z "$doc" ]; then
+            echo "::warning::No docs/IMPLEMENTED_v${version}_*.md found. Add one before tagging next time."
+            body="No changelog file found for v${version}. See commit history for details."
+          else
+            body=$(cat "$doc")
+          fi
+          {
+            echo "body<<EOF_CHANGELOG"
+            echo "$body"
+            echo "EOF_CHANGELOG"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Package source archive (matches current manual zip format)
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          git archive --format=zip --prefix=dayz-aio/ -o "dayz-aio-v${version}.zip" HEAD
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: DayZ AIO v${{ steps.version.outputs.version }}
+          body: ${{ steps.changelog.outputs.body }}
+          files: dayz-aio-v${{ steps.version.outputs.version }}.zip

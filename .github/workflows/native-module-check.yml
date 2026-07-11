@@ -1,0 +1,44 @@
+name: Native Module Rebuild Check
+
+# Verifies that better-sqlite3's native binding actually builds and loads
+# on every OS/Node combination the portable Node.js 20 bootstrap can hand
+# out, instead of only discovering a mismatch when a user's DB init fails.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  rebuild-check:
+    name: better-sqlite3 on ${{ matrix.os }} / Node ${{ matrix.node-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        node-version: ["20.x", "22.x"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install backend dependencies (triggers native build)
+        working-directory: apps/backend
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify better-sqlite3 loads and can query
+        working-directory: apps/backend
+        run: |
+          node -e "const db = require('better-sqlite3')(':memory:'); db.prepare('SELECT 1 AS ok').get(); console.log('better-sqlite3 OK on', process.version, process.platform, process.arch);"
