@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/backend",
-  "version": "0.4.7-ci-test-glob-runner-fix",
+  "version": "0.4.8-ci-windows-node-path-fix",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

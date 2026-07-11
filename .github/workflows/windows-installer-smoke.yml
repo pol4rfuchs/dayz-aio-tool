@@ -28,12 +28,23 @@ jobs:
         shell: cmd
         run: install-windows.bat
 
+      - name: Expose portable Node 20 to later CI steps
+        shell: pwsh
+        run: |
+          . .\scripts\windows\ensure-node.ps1
+          $nodeInfo = Ensure-Node20 -NoDownload
+          $nodeDir = Split-Path -Parent $nodeInfo.Path
+          if (-not $nodeInfo.Version.StartsWith("20.")) { throw "Expected portable Node 20.x after installer bootstrap, got $($nodeInfo.Version) at $($nodeInfo.Path)" }
+          Add-Content -Path $env:GITHUB_PATH -Value $nodeDir
+          Write-Host "Portable Node runtime selected: $($nodeInfo.Version) at $nodeDir"
+
       - name: Verify selected Node runtime is exactly 20.x
         shell: pwsh
         run: |
-          $nodeVersion = (& node -p "process.versions.node").Trim()
-          if (-not $nodeVersion.StartsWith("20.")) { throw "Expected Node 20.x after installer bootstrap, got $nodeVersion" }
-          Write-Host "Node runtime OK: $nodeVersion"
+          $nodePath = (Get-Command node -ErrorAction Stop).Source
+          $nodeVersion = (& $nodePath -p "process.versions.node").Trim()
+          if (-not $nodeVersion.StartsWith("20.")) { throw "Expected Node 20.x after installer bootstrap, got $nodeVersion at $nodePath" }
+          Write-Host "Node runtime OK: $nodeVersion at $nodePath"
 
       - name: Verify apps/backend/.env was generated with strong secrets
         shell: pwsh
