@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/shared",
-  "version": "0.4.6-ci-node20-lockfile-actions-fix",
+  "version": "0.4.7-ci-test-glob-runner-fix",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

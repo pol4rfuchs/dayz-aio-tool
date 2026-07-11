@@ -1,7 +1,7 @@
 {
   "name": "dayz-aio",
   "private": true,
-  "version": "0.4.6-ci-node20-lockfile-actions-fix",
+  "version": "0.4.7-ci-test-glob-runner-fix",
   "description": "DayZ AIO Server Manager - modular DayZ Standalone control plane",
   "workspaces": [
     "apps/backend",

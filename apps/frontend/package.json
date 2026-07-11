@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/frontend",
-  "version": "0.4.6-ci-node20-lockfile-actions-fix",
+  "version": "0.4.7-ci-test-glob-runner-fix",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3100 --strictPort",

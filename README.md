@@ -337,3 +337,10 @@ Fixes the v0.4.2 review findings: explicit Steam Web API key masking and a singl
 ## v0.4.6 CI Node20 Lockfile Actions Fix
 
 GitHub Actions are pinned to Node.js 20.20.2 with `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true` while the Windows native dependency path remains on the Node 20 ABI. Use the manual `Generate pnpm Lockfile` workflow once to create `pnpm-lock.yaml` and remove stale `package-lock.json`. See `docs/CI_NODE20_LOCKFILE.md`.
+
+## v0.4.7 CI Test Glob Runner Fix
+
+The backend test script no longer relies on shell glob expansion. It now uses
+`apps/backend/scripts/run-tests.mjs` to discover `test/**/*.test.ts` files and
+passes explicit file paths to the Node test runner via `tsx`. This fixes GitHub
+Actions failures where `test/**/*.test.ts` was treated as a literal path.
