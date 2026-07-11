@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
+import { execa } from "execa";
 import { getSteamCmdQueueState, runSteamCmd as runSteamCmdSerialized } from "./steamcmd.js";
 import { z } from "zod";
 import { requireServer } from "../servers/repository.js";

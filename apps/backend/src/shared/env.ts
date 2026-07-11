@@ -85,6 +85,7 @@ export const RATE_LIMIT_PER_MINUTE = Number(process.env.DAYZ_AIO_RATE_LIMIT_PER_
 export const AUTH_FAILURE_LIMIT_PER_MINUTE = Number(process.env.DAYZ_AIO_AUTH_FAILURE_LIMIT_PER_MINUTE ?? 20);
 export const BATTLEYE_RCON_ENABLED = boolEnv("DAYZ_AIO_BATTLEYE_RCON_ENABLED", false);
 export const RCON_TIMEOUT_MS = Number(process.env.DAYZ_AIO_RCON_TIMEOUT_MS ?? 5000);
+export const STEAM_WEB_API_KEY = process.env.STEAM_WEB_API_KEY ?? process.env.DAYZ_AIO_STEAM_WEB_API_KEY ?? "";
 export const SCHEDULE_MAX_RETRIES = Number(process.env.DAYZ_AIO_SCHEDULE_MAX_RETRIES ?? 2);
 export const SCHEDULE_RETRY_DELAY_MINUTES = Number(process.env.DAYZ_AIO_SCHEDULE_RETRY_DELAY_MINUTES ?? 5);
 export const SCHEDULE_ESCALATE_AFTER_FAILURES = Number(process.env.DAYZ_AIO_SCHEDULE_ESCALATE_AFTER_FAILURES ?? 3);

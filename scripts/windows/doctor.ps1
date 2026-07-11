@@ -34,17 +34,17 @@ if (Test-Path $envFile) {
 $portableNode = Join-Path $Root ".dayz-aio-runtime\node20\node.exe"
 $systemNode = Get-NodeVersionFromCommand "node"
 $portableInfo = Get-NodeVersionFromPath $portableNode
-$nodeOk = ($systemNode -and $systemNode.Major -ge 20) -or ($portableInfo -and $portableInfo.Major -ge 20)
-Add-Check "node runtime" $nodeOk "System Node.js >=20 or portable .dayz-aio-runtime\node20 is required. install-windows.bat can bootstrap it automatically."
-if ($systemNode) { Add-Check "system node version" ($systemNode.Major -ge 20) "Detected system Node.js $($systemNode.Version) at $($systemNode.Path)" }
-if ($portableInfo) { Add-Check "portable node version" ($portableInfo.Major -ge 20) "Detected portable Node.js $($portableInfo.Version) at $($portableInfo.Path)" }
-if (-not $systemNode -and -not $portableInfo) { Add-Check "node available" $false "No Node.js runtime detected yet. Run install-windows.bat to download portable Node.js 20." }
-Add-Check "npm" ((Test-Cmd npm) -or (Test-Path (Join-Path $Root ".dayz-aio-runtime\node20\npm.cmd"))) "npm must be available from system Node.js or portable Node.js"
+$nodeOk = ($systemNode -and $systemNode.Major -eq 20) -or ($portableInfo -and $portableInfo.Major -eq 20)
+Add-Check "node runtime" $nodeOk "Node.js 20.x exactly is required. Node 22/24 are rejected because better-sqlite3 native bindings are installed for the Node-20 ABI. install-windows.bat can bootstrap portable Node.js 20.20.2."
+if ($systemNode) { Add-Check "system node version" ($systemNode.Major -eq 20) "Detected system Node.js $($systemNode.Version) at $($systemNode.Path)" }
+if ($portableInfo) { Add-Check "portable node version" ($portableInfo.Major -eq 20) "Detected portable Node.js $($portableInfo.Version) at $($portableInfo.Path)" }
+if (-not $systemNode -and -not $portableInfo) { Add-Check "node available" $false "No Node.js runtime detected yet. Run install-windows.bat to download portable Node.js 20.20.2." }
+Add-Check "npm" ((Test-Cmd npm) -or (Test-Path (Join-Path $Root ".dayz-aio-runtime\node20\npm.cmd"))) "npm must be available from the selected Node.js 20 runtime"
 Add-Check "node_modules" (Test-Path (Join-Path $Root "node_modules")) "Run install-windows.bat if this is false" (Join-Path $Root "node_modules")
-$p8080 = Test-PortFree 8080
-Add-Check "backend port 8080" $true "Free before start: $p8080. False is OK if backend is already running; bad only if another app occupies it."
-$p3000 = Test-PortFree 3000
-Add-Check "frontend port 3000" $true "Free before start: $p3000. False is OK if frontend is already running; bad only if another app occupies it."
+$p8090 = Test-PortFree 8090
+Add-Check "backend port 8090" $true "Free before start: $p8090. False is OK if backend is already running; bad only if another app occupies it."
+$p3100 = Test-PortFree 3100
+Add-Check "frontend port 3100" $true "Free before start: $p3100. False is OK if frontend is already running; bad only if another app occupies it."
 Add-Check "data folder" (Test-Path (Join-Path $Root "data")) "data folder exists" (Join-Path $Root "data")
 Add-Check "backup folder" (Test-Path (Join-Path $Root "data\backups")) "backup folder exists" (Join-Path $Root "data\backups")
 

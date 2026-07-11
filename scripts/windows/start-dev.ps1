@@ -6,6 +6,12 @@ Set-Location $Root
 $LogDir = Join-Path $Root "logs"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 $Env:DAYZ_AIO_LOG_DIR = $LogDir
+$env:npm_config_build_from_source = "false"
+$env:npm_config_fund = "false"
+$env:npm_config_audit = "false"
+$env:COREPACK_ENABLE_DOWNLOAD_PROMPT = "0"
+$env:PNPM_HOME = Join-Path $Root ".dayz-aio-runtime\pnpm-home"
+New-Item -ItemType Directory -Force -Path $env:PNPM_HOME | Out-Null
 $EnvFile = Join-Path $Root "apps\backend\.env"
 if (-not (Test-Path $EnvFile)) { throw "apps/backend/.env missing. Run install-windows.bat first to generate API/security keys." }
 $Env:VITE_API_BASE = "http://localhost:8090"
@@ -34,7 +40,7 @@ Require-Command node "Node.js 20 is bootstrapped by install-windows.bat."
 $pnpm = Ensure-Pnpm
 $nodeVersion = (& node -p "process.versions.node").Trim()
 $major = [int]($nodeVersion.Split('.')[0])
-if ($major -lt 20) { throw "Node.js $nodeVersion is too old. Run install-windows.bat." }
+if ($major -ne 20) { throw "Node.js $nodeVersion is not supported. DayZ AIO requires Node.js 20.x exactly. Run install-windows.bat." }
 
 if (-not (Test-Path (Join-Path $Root "node_modules")) -and -not (Test-Path (Join-Path $Root "apps\backend\node_modules"))) {
   Write-Step "node_modules missing; running install-windows.bat first..."

@@ -76,7 +76,9 @@ function extractParamsFromText(text) {
     const matches = Array.from(text.matchAll(PARAM_RE)).map((match) => match[1]?.trim()).filter(Boolean);
     return normalizeParamText(matches.join(" "));
 }
-function collectStrings(value, out = [], keyPath = "") {
+export function collectStrings(value, out = [], keyPath = "", depth = 0, seen = new WeakSet()) {
+    if (depth > 20)
+        return out;
     if (typeof value === "string") {
         const interestingKey = /(param|arg|start|launch|mod|profile|path|cmd|command|server)/i.test(keyPath);
         const interestingValue = /-(?:config|profiles|mod|servermod|port|bepath)\s*=|DayZServer_x64\.exe|@[^;\s]+/i.test(value);
@@ -84,14 +86,19 @@ function collectStrings(value, out = [], keyPath = "") {
             out.push(value);
         return out;
     }
+    if (value && typeof value === "object") {
+        if (seen.has(value))
+            return out;
+        seen.add(value);
+    }
     if (Array.isArray(value)) {
         for (let index = 0; index < value.length; index += 1)
-            collectStrings(value[index], out, `${keyPath}[${index}]`);
+            collectStrings(value[index], out, `${keyPath}[${index}]`, depth + 1, seen);
         return out;
     }
     if (value && typeof value === "object") {
         for (const [key, nested] of Object.entries(value))
-            collectStrings(nested, out, keyPath ? `${keyPath}.${key}` : key);
+            collectStrings(nested, out, keyPath ? `${keyPath}.${key}` : key, depth + 1, seen);
     }
     return out;
 }

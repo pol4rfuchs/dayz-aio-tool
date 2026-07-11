@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { execa } from "execa";
+import { getSteamCmdQueueState, runSteamCmd as runSteamCmdSerialized } from "./steamcmd.js";
 import { z } from "zod";
 import { requireServer } from "../servers/repository.js";
 import { getRuntimeStatus } from "../process/service.js";
@@ -134,7 +135,10 @@ function rememberJob(job) {
     jobs.set(job.id, job);
     const all = [...jobs.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     while (all.length > 50) {
-        const old = all.shift();
+        const index = all.findIndex((candidate) => candidate.status !== "running");
+        if (index < 0)
+            break;
+        const [old] = all.splice(index, 1);
         if (old)
             jobs.delete(old.id);
     }
@@ -228,8 +232,8 @@ async function copyWorkshopItemToServer(server, workshopId) {
     return true;
 }
 async function runSteamCmd(file, args) {
-    const result = await execa(file, args, { cwd: path.dirname(file), reject: false, all: true, timeout: UPDATE_TIMEOUT_MS });
-    return { exitCode: result.exitCode ?? -1, output: result.all ?? "" };
+    const result = await runSteamCmdSerialized(file, args, { timeoutMs: UPDATE_TIMEOUT_MS, label: `${file} ${redactSteamCmdArgs(args).join(" ")}` });
+    return { exitCode: result.exitCode, output: result.output };
 }
 function registerNumericWorkshopMod(serverId, workshopId) {
     const now = new Date().toISOString();
@@ -401,6 +405,7 @@ export async function updateRoutes(app) {
         const query = request.query;
         return { items: [...jobs.values()].filter((job) => !query.serverId || job.serverId === query.serverId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) };
     });
+    app.get("/api/updates/steamcmd-queue", async () => ({ queue: getSteamCmdQueueState() }));
     app.get("/api/updates/jobs/:jobId", async (request, reply) => {
         const { jobId } = request.params;
         const job = jobs.get(jobId);

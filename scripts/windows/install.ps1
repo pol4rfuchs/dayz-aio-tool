@@ -3,9 +3,17 @@ $Root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 . (Join-Path $PSScriptRoot "ensure-node.ps1")
 Ensure-Node20 | Out-Null
 Set-Location $Root
+
 $LogDir = Join-Path $Root "logs"
-New-Item -ItemType Directory -Force -Path (Join-Path $LogDir "scripts"), (Join-Path $LogDir "snapshots") | Out-Null
+$ScriptLogDir = Join-Path $LogDir "scripts"
+New-Item -ItemType Directory -Force -Path $ScriptLogDir, (Join-Path $LogDir "snapshots") | Out-Null
 $Env:DAYZ_AIO_LOG_DIR = $LogDir
+
+$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$PnpmInstallLog = Join-Path $ScriptLogDir "pnpm-install-$stamp.log"
+$PnpmInstallLatestLog = Join-Path $ScriptLogDir "pnpm-install-latest.log"
+$PnpmBuildLog = Join-Path $ScriptLogDir "pnpm-build-$stamp.log"
+$PnpmBuildLatestLog = Join-Path $ScriptLogDir "pnpm-build-latest.log"
 
 function Write-Step($Message) { Write-Host "[DayZ AIO] $Message" -ForegroundColor Cyan }
 function Write-Warn($Message) { Write-Host "[DayZ AIO][WARN] $Message" -ForegroundColor Yellow }
@@ -22,10 +30,32 @@ function Invoke-Native([string]$Exe, [string[]]$ArgsList, [string]$WorkingDir = 
   } finally { Pop-Location }
 }
 
+function Invoke-NativeLogged([string]$Exe, [string[]]$ArgsList, [string]$LogFile, [string]$LatestFile, [string]$WorkingDir = $Root) {
+  Push-Location $WorkingDir
+  try {
+    if (Test-Path $LogFile) { Remove-Item $LogFile -Force }
+    Write-Step "$Exe $($ArgsList -join ' ')  [cwd: $WorkingDir]"
+    Write-Step "Step log: $LogFile"
+    & $Exe @ArgsList 2>&1 | ForEach-Object {
+      $line = $_.ToString()
+      Write-Host $line
+      Add-Content -Path $LogFile -Value $line -Encoding UTF8
+    }
+    $code = $LASTEXITCODE
+    try { Copy-Item -Path $LogFile -Destination $LatestFile -Force } catch {}
+    if ($code -ne 0) {
+      Write-Host "" -ForegroundColor Yellow
+      Write-Host "Last 80 lines from $LogFile" -ForegroundColor Yellow
+      try { Get-Content $LogFile -Tail 80 } catch {}
+      throw "$Exe exited with code $code while running: $($ArgsList -join ' ')"
+    }
+  } finally { Pop-Location }
+}
+
 function Enable-Pnpm() {
   $corepack = (Get-Command corepack.cmd -ErrorAction SilentlyContinue)
   if (-not $corepack) { $corepack = (Get-Command corepack -ErrorAction SilentlyContinue) }
-  if (-not $corepack) { throw "corepack not found in portable Node.js. Node.js bootstrap is incomplete." }
+  if (-not $corepack) { throw "corepack not found in selected Node.js 20 runtime. Node.js bootstrap is incomplete." }
 
   Write-Step "Enabling Corepack / pnpm 9.15.9"
   Invoke-Native $corepack.Source @("enable") $Root
@@ -33,7 +63,7 @@ function Enable-Pnpm() {
 
   $pnpm = (Get-Command pnpm.cmd -ErrorAction SilentlyContinue)
   if (-not $pnpm) { $pnpm = (Get-Command pnpm -ErrorAction SilentlyContinue) }
-  if (-not $pnpm) { throw "pnpm was not found after Corepack activation. Send logs/scripts/install-windows-latest.log." }
+  if (-not $pnpm) { throw "pnpm was not found after Corepack activation. Send logs/scripts/install-windows-latest.log and logs/scripts/pnpm-install-latest.log." }
   return $pnpm.Source
 }
 
@@ -49,8 +79,15 @@ Require-Command node "Node.js 20 is bootstrapped automatically by install-window
 $nodeCommand = Get-Command node -ErrorAction Stop
 $nodeVersion = (& $nodeCommand.Source -p "process.versions.node").Trim()
 $major = [int]($nodeVersion.Split('.')[0])
-if ($major -lt 20) { throw "Node.js $nodeVersion is too old. Portable Node.js 20 bootstrap failed." }
+if ($major -ne 20) { throw "Node.js $nodeVersion is not supported. DayZ AIO requires Node.js 20.x exactly. Portable Node.js 20 bootstrap failed." }
 Write-Step "Node.js $nodeVersion OK at $($nodeCommand.Source)"
+
+$env:npm_config_build_from_source = "false"
+$env:npm_config_fund = "false"
+$env:npm_config_audit = "false"
+$env:COREPACK_ENABLE_DOWNLOAD_PROMPT = "0"
+$env:PNPM_HOME = Join-Path $Root ".dayz-aio-runtime\pnpm-home"
+New-Item -ItemType Directory -Force -Path $env:PNPM_HOME | Out-Null
 
 $envFile = Join-Path $Root "apps\backend\.env"
 if (-not (Test-Path $envFile)) {
@@ -99,18 +136,17 @@ Write-Step "Frontend API config written for backend http://localhost:8090"
 $pnpm = Enable-Pnpm
 $storeDir = Join-Path $Root ".dayz-aio-runtime\pnpm-store"
 New-Item -ItemType Directory -Force -Path $storeDir | Out-Null
-$env:COREPACK_ENABLE_DOWNLOAD_PROMPT = "0"
-$env:PNPM_HOME = Join-Path $Root ".dayz-aio-runtime\pnpm-home"
-New-Item -ItemType Directory -Force -Path $env:PNPM_HOME | Out-Null
 
-Write-Step "Installing dependencies with pnpm. npm is intentionally bypassed because npm 10.8.x failed on this Windows host."
+Write-Step "Installing dependencies with pnpm. npm is intentionally bypassed; native modules require the selected Node.js 20 runtime."
 Invoke-Native $pnpm @("--version") $Root
-Invoke-Native $pnpm @("install", "--store-dir", $storeDir, "--config.verify-store-integrity=false") $Root
+Invoke-NativeLogged $pnpm @("install", "--store-dir", $storeDir, "--config.verify-store-integrity=false") $PnpmInstallLog $PnpmInstallLatestLog $Root
 
 if (-not (Test-DependencyInstall $Root)) {
-  throw "Dependencies are still missing after pnpm install. Send logs/scripts/install-windows-latest.log."
+  throw "Dependencies are still missing after pnpm install. Send logs/scripts/install-windows-latest.log and logs/scripts/pnpm-install-latest.log."
 }
 
 Write-Step "Building packages with pnpm"
-Invoke-Native $pnpm @("-r", "run", "build") $Root
+Invoke-NativeLogged $pnpm @("-r", "run", "build") $PnpmBuildLog $PnpmBuildLatestLog $Root
 Write-Step "Install/build completed. Use start-windows.bat to run the panel."
+Write-Step "Install log: $PnpmInstallLatestLog"
+Write-Step "Build log:   $PnpmBuildLatestLog"

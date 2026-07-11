@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 . (Join-Path $PSScriptRoot "ensure-node.ps1")
 Ensure-Node20 | Out-Null
+$env:COREPACK_ENABLE_DOWNLOAD_PROMPT = "0"
 function Step($Message) { Write-Host "[Smoke] $Message" -ForegroundColor Cyan }
 function Get-ApiKey() {
   if ($ApiKey -ne "") { return $ApiKey }

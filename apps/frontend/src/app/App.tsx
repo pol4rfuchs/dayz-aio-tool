@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, Archive, BarChart3, Bell, Bot, CalendarClock, Database, DownloadCloud, FileText, HardDrive, KeyRound, Map, Package, PlusCircle, Power, Radio, Rocket, ScrollText, ServerCog, ShieldCheck, TestTube2 } from "lucide-react";
+import { Activity, AlertTriangle, Archive, BarChart3, Bell, Bot, CalendarClock, Calculator, Database, DownloadCloud, FileText, HardDrive, KeyRound, Map, MessageSquare, Package, PlusCircle, Power, Radio, Rocket, ScrollText, ServerCog, ShieldCheck, TestTube2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AddExistingServer } from "../pages/AddExistingServer";
 import { AdvancedLab } from "../pages/AdvancedLab";
@@ -6,6 +6,8 @@ import { Analytics } from "../pages/Analytics";
 import { AuditLog } from "../pages/AuditLog";
 import { Backups } from "../pages/Backups";
 import { CrashMonitor } from "../pages/CrashMonitor";
+import { CommunityOps } from "../pages/CommunityOps";
+import { ContentTools } from "../pages/ContentTools";
 import { Dashboard } from "../pages/Dashboard";
 import { DebugBundle } from "../pages/DebugBundle";
 import { EconomyEditor } from "../pages/EconomyEditor";
@@ -21,16 +23,20 @@ import { ServerControl } from "../pages/ServerControl";
 import { ServerUpdater } from "../pages/ServerUpdater";
 import { ServerConfig } from "../pages/ServerConfig";
 import { TestCenter } from "../pages/TestCenter";
+import { WipeManagement } from "../pages/WipeManagement";
 import { apiGet, getApiKey } from "../lib/api";
 import type { ServerRecord } from "../lib/types";
 
-type PageKey = "dashboard" | "server-control" | "server-updater" | "mod-updater" | "security" | "add-server" | "readiness" | "config" | "economy" | "mods" | "backups" | "audit" | "scheduler" | "notifications" | "rcon" | "crash" | "live-logs" | "tests" | "debug" | "analytics" | "advanced";
+type PageKey = "dashboard" | "server-control" | "server-updater" | "mod-updater" | "community" | "content-tools" | "wipe" | "security" | "add-server" | "readiness" | "config" | "economy" | "mods" | "backups" | "audit" | "scheduler" | "notifications" | "rcon" | "crash" | "live-logs" | "tests" | "debug" | "analytics" | "advanced";
 
 const pages = [
   ["dashboard", Activity, "Dashboard"],
   ["server-control", Power, "Server Control"],
   ["server-updater", ServerCog, "Server Updater"],
   ["mod-updater", DownloadCloud, "Mod Updater"],
+  ["community", MessageSquare, "Community Ops"],
+  ["content-tools", Calculator, "Content Tools"],
+  ["wipe", Trash2, "Wipe Management"],
   ["security", KeyRound, "Security"],
   ["add-server", PlusCircle, "Add Existing Server"],
   ["readiness", Rocket, "Go-Live Checklist"],
@@ -109,6 +115,9 @@ export function App() {
     if (page === "server-control") return <ServerControl {...props} />;
     if (page === "server-updater") return <ServerUpdater {...props} />;
     if (page === "mod-updater") return <ModUpdater {...props} />;
+    if (page === "community") return <CommunityOps {...props} />;
+    if (page === "content-tools") return <ContentTools {...props} />;
+    if (page === "wipe") return <WipeManagement {...props} />;
     if (page === "add-server") return <AddExistingServer onCreated={(id) => { setSelectedServerId(id); setPage("readiness"); }} />;
     if (page === "readiness") return <Readiness {...props} />;
     if (page === "config") return <ServerConfig {...props} />;
@@ -132,7 +141,7 @@ export function App() {
       <aside className="sidebar glass">
         <div className="brand">
           <div className="brand-mark">DZ</div>
-          <div><strong>DayZ AIO</strong><span>Control Plane v0.4.1-beta-hardening</span></div>
+          <div><strong>DayZ AIO</strong><span>Control Plane v0.4.3-green-security-dzsa-cleanup</span></div>
         </div>
         {!hasApiKey ? <div className="mini-note danger-note"><KeyRound size={16} /> API-Key fehlt</div> : null}
         <nav>

@@ -4,6 +4,7 @@ import { getDb } from "../../db/database.js";
 import { API_KEY, AUTH_DISABLED, BACKUP_DIR, CORS_ORIGINS, DATA_DIR, SECRET_KEY } from "../../shared/env.js";
 import { sendError } from "../../shared/errors.js";
 import { requireServer } from "../servers/repository.js";
+import { hasDzsaLauncherServer } from "../servers/dzsaDetection.js";
 import { listBackups } from "../backups/service.js";
 import { readServerDz, validateServerDz } from "../config/serverDz.js";
 import { formatValidationSummary, validateTypesXml } from "../economy/parser.js";
@@ -110,6 +111,8 @@ export async function readinessRoutes(app) {
             }
             const backups = listBackups(serverId);
             checks.push({ key: "backup.exists", label: "At least one backup", status: backups.length > 0 ? "pass" : "warn", message: backups.length > 0 ? `${backups.length} backups found.` : "Create a manual backup before heavier tests.", requiredFor: ["go-live"] });
+            const dzsaDetected = await hasDzsaLauncherServer(server.rootPath);
+            checks.push({ key: "dzsa.launcher", label: "DZSALModServer detected", status: dzsaDetected ? "pass" : "warn", message: dzsaDetected ? "DZSALModServer candidate detected for DZSA Launcher mod-sync support." : "DZSALModServer not detected. DZSA Launcher automatic mod sync may be unavailable.", path: server.rootPath, requiredFor: ["community"] });
             const runtime = getRuntimeStatus(serverId);
             checks.push({ key: "runtime.status", label: "Runtime status known", status: runtime.status === "unknown" ? "warn" : "pass", message: `Current status: ${runtime.status}.`, requiredFor: ["monitoring"] });
             const result = score(checks);

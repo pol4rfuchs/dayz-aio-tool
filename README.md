@@ -36,17 +36,18 @@ DAYZ_AIO_CORS_ORIGINS
 Beim ersten UI-Start links **Security** öffnen und den `DAYZ_AIO_API_KEY` aus `apps/backend/.env` eintragen.
 
 
-## Node.js Bootstrap in v0.2.5
+## Node.js Bootstrap / Windows Native Runtime
 
-`install-windows.bat` und `start-windows.bat` prüfen jetzt automatisch die Node.js-Version.
+`install-windows.bat`, `build-windows.bat`, `start-windows.bat`, `doctor-windows.bat` und `smoke-test-windows.bat` verwenden dieselbe Node.js-Auswahl.
 
 ```text
-Wenn System-Node >=20 vorhanden ist: wird verwendet.
-Wenn nur Node 16/18 vorhanden ist: portable Node.js 20 wird automatisch nach .dayz-aio-runtime\node20 geladen.
-Wenn kein Node vorhanden ist: portable Node.js 20 wird automatisch geladen.
+Wenn System-Node 20.x vorhanden ist: wird verwendet.
+Wenn System-Node 22/24 vorhanden ist: wird abgelehnt und portable Node.js 20.20.2 wird verwendet.
+Wenn nur Node 16/18 vorhanden ist: portable Node.js 20.20.2 wird automatisch nach .dayz-aio-runtime\node20 geladen.
+Wenn kein Node vorhanden ist: portable Node.js 20.20.2 wird automatisch geladen.
 ```
 
-Dadurch musst du Node.js nicht mehr global installieren. Der portable Runtime-Ordner bleibt lokal im Projekt und wird von Git ignoriert.
+Dadurch musst du Node.js nicht mehr global installieren. Node 22/24 werden bewusst nicht verwendet, weil native Module wie better-sqlite3 an die Node-ABI gebunden sind. Der portable Runtime-Ordner bleibt lokal im Projekt und wird von Git ignoriert.
 
 Voraussetzung für den automatischen Download: Windows hat Internetzugriff auf `nodejs.org`.
 
@@ -322,3 +323,12 @@ See `docs/IMPLEMENTED_v0.4.0_PUBLIC_BETA_CANDIDATE.md` and `docs/PUBLIC_BETA_RUN
 ## v0.4.1 Public Beta Hardening
 
 Adds unified SteamCMD queueing, SteamCMD parser tests, launch-profile parser guards, safer job cleanup, NSSM-based service installation, and stale-version fallback protection.
+
+
+## v0.4.2 Green Backlog Pack
+
+Adds Community Ops, Content Tools, Wipe Management, DZSALModServer detection, Day/Night calculator, Classname Finder, messages.xml generator and optional Steam ban-check endpoint. See `docs/IMPLEMENTED_v0.4.2_GREEN_BACKLOG_PACK.md`.
+
+## v0.4.3 Green Security + DZSA Cleanup
+
+Fixes the v0.4.2 review findings: explicit Steam Web API key masking and a single shared DZSALModServer detector used by both Community Ops and Readiness. See `docs/IMPLEMENTED_v0.4.3_GREEN_SECURITY_DZSA_CLEANUP.md`.

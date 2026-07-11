@@ -96,3 +96,14 @@ CREATE TABLE IF NOT EXISTS test_runs (
   created_at TEXT NOT NULL,
   FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE CASCADE
 );
+
+
+CREATE TABLE IF NOT EXISTS wipe_cycles (
+  id TEXT PRIMARY KEY,
+  server_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  storage_name TEXT NOT NULL,
+  archived_path TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE CASCADE
+);

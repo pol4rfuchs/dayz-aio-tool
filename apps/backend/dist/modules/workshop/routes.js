@@ -1,15 +1,15 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
-import { execa } from "execa";
+import { runSteamCmd as runSteamCmdSerialized, workshopTimeoutMs } from "../updates/steamcmd.js";
 import { z } from "zod";
 import { getDb } from "../../db/database.js";
 import { sendError } from "../../shared/errors.js";
 import { requireServer } from "../servers/repository.js";
 import { writeAudit } from "../audit/service.js";
 import { broadcast } from "../realtime/hub.js";
-import { WORKSHOP_JOB_HISTORY_LIMIT, WORKSHOP_STEAMCMD_TIMEOUT_MS } from "../../shared/env.js";
-const installSchema = z.object({ workshopId: z.string().regex(/^\d+$/), folderName: z.string().optional(), username: z.string().optional().default("anonymous"), password: z.string().optional().default("") });
+import { WORKSHOP_JOB_HISTORY_LIMIT } from "../../shared/env.js";
+const installSchema = z.object({ workshopId: z.string().regex(/^\d+$/), folderName: z.string().optional(), username: z.string().optional().default("anonymous") });
 const updateEnabledSchema = z.object({ username: z.string().optional().default("anonymous") }).optional();
 const jobs = new Map();
 let jobChain = Promise.resolve();
@@ -17,7 +17,10 @@ function rememberJob(job) {
     jobs.set(job.id, job);
     const all = [...jobs.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     while (all.length > WORKSHOP_JOB_HISTORY_LIMIT) {
-        const old = all.shift();
+        const index = all.findIndex((candidate) => candidate.status !== "running");
+        if (index < 0)
+            break;
+        const [old] = all.splice(index, 1);
         if (old)
             jobs.delete(old.id);
     }
@@ -27,17 +30,20 @@ function updateJob(job, patch) {
     jobs.set(job.id, job);
     broadcast("workshop.job.updated", job, job.serverId);
 }
-function steamArgs(rootPath, workshopAppId, workshopId, username = "anonymous", password = "") {
-    return ["+force_install_dir", rootPath, "+login", username, password, "+workshop_download_item", workshopAppId, workshopId, "+quit"].filter((x) => x !== "");
+function steamArgs(rootPath, workshopAppId, workshopId, username = "anonymous") {
+    return ["+force_install_dir", rootPath, "+login", username || "anonymous", "+workshop_download_item", workshopAppId, workshopId, "+quit"];
 }
-async function runSteamCmd(server, workshopId, username = "anonymous", password = "") {
+function redactSteamArgs(args) {
+    return args.map((arg, index) => index > 0 && args[index - 1] === "+login" && arg !== "anonymous" ? "<steam-user>" : arg);
+}
+async function runSteamCmd(server, workshopId, username = "anonymous") {
     if (!server.steamcmdPath)
         throw Object.assign(new Error("steamcmdPath is not configured for this server."), { statusCode: 400 });
     await fs.access(server.steamcmdPath);
     const workshopAppId = server.workshopAppId || "221100";
-    const args = steamArgs(server.rootPath, workshopAppId, workshopId, username, password);
-    const result = await execa(server.steamcmdPath, args, { cwd: path.dirname(server.steamcmdPath), reject: false, all: true, timeout: WORKSHOP_STEAMCMD_TIMEOUT_MS });
-    return { exitCode: result.exitCode ?? -1, output: result.all ?? "", args: args.map((x) => x === password ? "***" : x) };
+    const args = steamArgs(server.rootPath, workshopAppId, workshopId, username);
+    const result = await runSteamCmdSerialized(server.steamcmdPath, args, { timeoutMs: workshopTimeoutMs(), label: `${server.steamcmdPath} ${redactSteamArgs(args).join(" ")}` });
+    return { exitCode: result.exitCode, output: result.output, args: redactSteamArgs(args) };
 }
 async function workshopPreflight(server) {
     const checks = [];
@@ -129,7 +135,7 @@ export async function workshopRoutes(app) {
             enqueueWorkshopJob(job, async () => {
                 updateJob(job, { current: input.workshopId });
                 broadcast("workshop.install.started", { workshopId: input.workshopId, jobId: job.id }, serverId);
-                const result = await runSteamCmd(server, input.workshopId, input.username, input.password);
+                const result = await runSteamCmd(server, input.workshopId, input.username);
                 const ok = result.exitCode === 0;
                 job.results.push({ workshopId: input.workshopId, folderName, exitCode: result.exitCode, outputTail: result.output.slice(-4000) });
                 updateJob(job, { completed: 1, failed: ok ? 0 : 1, results: job.results });

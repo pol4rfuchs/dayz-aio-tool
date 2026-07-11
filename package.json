@@ -1,7 +1,7 @@
 {
   "name": "dayz-aio",
   "private": true,
-  "version": "0.4.1-beta-hardening",
+  "version": "0.4.5-windows-runtime-consistency",
   "description": "DayZ AIO Server Manager - modular DayZ Standalone control plane",
   "workspaces": [
     "apps/backend",
@@ -22,7 +22,7 @@
     "test": "pnpm --filter @dayz-aio/backend run test"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.0.0 <21.0.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
