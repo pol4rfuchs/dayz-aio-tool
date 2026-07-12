@@ -1,7 +1,7 @@
 {
   "name": "dayz-aio",
   "private": true,
-  "version": "0.5.3-maintenance-verification-coverage",
+  "version": "0.5.4-lockfile-integrity-guard",
   "description": "DayZ AIO Server Manager - modular DayZ Standalone control plane",
   "workspaces": [
     "apps/backend",
@@ -19,7 +19,8 @@
     "build:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/build.ps1",
     "start:windows:prod": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/start-production.ps1",
     "reset:runtime-db:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/reset-runtime-db.ps1",
-    "test": "pnpm --filter @dayz-aio/backend run test"
+    "test": "pnpm --filter @dayz-aio/backend run test",
+    "check:lockfile": "node scripts/ci/check-pnpm-lockfile.mjs"
   },
   "engines": {
     "node": ">=20.0.0 <21.0.0"

@@ -28,12 +28,8 @@ jobs:
             exit 1
           fi
 
-      - name: Warn when pnpm lockfile is absent
-        shell: bash
-        run: |
-          if [ ! -f pnpm-lock.yaml ]; then
-            echo "::warning::pnpm-lock.yaml is missing. Run the Generate pnpm Lockfile workflow or run pnpm install with Node 20.20.2 and commit pnpm-lock.yaml."
-          fi
+      - name: Validate pnpm lockfile integrity
+        run: node scripts/ci/check-pnpm-lockfile.mjs
 
   build-test:
     name: Build & Test (Node 20.20.2)
