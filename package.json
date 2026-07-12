@@ -1,7 +1,7 @@
 {
   "name": "dayz-aio",
   "private": true,
-  "version": "0.5.9-updater-progress-ui",
+  "version": "0.5.10-notification-roadmap-cleanup",
   "description": "DayZ AIO Server Manager - modular DayZ Standalone control plane",
   "workspaces": [
     "apps/backend",

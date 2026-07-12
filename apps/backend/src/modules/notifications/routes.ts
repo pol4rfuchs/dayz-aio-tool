@@ -7,7 +7,7 @@ import { writeAudit } from "../audit/service.js";
 
 const targetSchema = z.object({
   name: z.string().min(1),
-  type: z.enum(["ntfy", "discord", "webhook"]),
+  type: z.enum(["ntfy", "webhook"]),
   url: z.string().url(),
   topic: z.string().optional().nullable(),
   enabled: z.boolean().default(true)
@@ -17,10 +17,6 @@ async function postNotification(target: any, message: string, title = "DayZ AIO"
   if (target.type === "ntfy") {
     const url = target.topic ? `${String(target.url).replace(/\/$/, "")}/${target.topic}` : target.url;
     const res = await fetch(url, { method: "POST", headers: { title }, body: message });
-    return { ok: res.ok, status: res.status, text: await res.text().catch(() => "") };
-  }
-  if (target.type === "discord") {
-    const res = await fetch(target.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: `**${title}**\n${message}` }) });
     return { ok: res.ok, status: res.status, text: await res.text().catch(() => "") };
   }
   const res = await fetch(target.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, message }) });

@@ -69,7 +69,7 @@ Voraussetzung für den automatischen Download: Windows hat Internetzugriff auf `
 - Audit Log UI
 - Scheduler für Restart/Backup/Start/Stop
 - Scheduler-Fehler werden persistiert und an Notification Targets gemeldet
-- ntfy/Discord/Webhook Notification Targets
+- ntfy/Webhook Notification Targets
 - RCON/Admin UI als guarded adapter
 - RCON-Passwort verschlüsselt in SQLite
 - Analytics Summary

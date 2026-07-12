@@ -14,7 +14,7 @@
 - Generic line diff engine
 - Audit Log API
 - Scheduler API + runtime tick
-- Notification Targets: ntfy, Discord, generic webhook
+- Notification Targets: ntfy and generic webhook
 - SteamCMD Workshop install adapter
 - Guarded RCON API shell: connectivity probe + allowlist + explicit 501 for full command execution
 - Analytics summary API

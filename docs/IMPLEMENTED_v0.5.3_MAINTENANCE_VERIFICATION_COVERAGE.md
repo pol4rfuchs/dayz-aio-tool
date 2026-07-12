@@ -21,4 +21,4 @@ This release continues the post-CI hardening pass after v0.5.2.
 ## Still open
 
 - Windows service shutdown signal forwarding is still a separate follow-up. The current NSSM wrapper remains functional, but the deeper service-stop model should be addressed independently.
-- Additional application features such as Discord notifications, whitelist management and advanced analytics remain future work.
+- Additional application features such as ntfy/TS6 notification planning, whitelist management and advanced analytics remain future work.
