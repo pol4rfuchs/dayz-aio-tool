@@ -21,6 +21,14 @@ async function shutdown(signal: string) {
 
 process.on("SIGINT", () => void shutdown("SIGINT"));
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
+
+process.on("message", (message: unknown) => {
+  const payload = message as { type?: unknown; reason?: unknown } | null;
+  if (payload && payload.type === "dayz-aio.shutdown") {
+    const reason = typeof payload.reason === "string" ? payload.reason : "ipc";
+    void shutdown(`IPC:${reason}`);
+  }
+});
 process.on("uncaughtException", (error) => {
   app.log.fatal({ error }, "Uncaught exception");
   void shutdown("uncaughtException");

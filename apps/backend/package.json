@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/backend",
-  "version": "0.5.7-service-shutdown-semantics",
+  "version": "0.5.8-service-ipc-shutdown-fix",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

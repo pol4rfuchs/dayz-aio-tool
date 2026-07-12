@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const frontendRoot = join(root, 'apps', 'frontend');
 const logDir = join(root, 'logs');
 mkdirSync(logDir, { recursive: true });
 
@@ -17,8 +18,10 @@ process.env.npm_config_audit = 'false';
 
 const envFile = join(root, 'apps', 'backend', '.env');
 const backendEntry = join(root, 'apps', 'backend', 'dist', 'server.js');
-const viteEntry = join(root, 'node_modules', 'vite', 'bin', 'vite.js');
-const frontendDist = join(root, 'apps', 'frontend', 'dist', 'index.html');
+const frontendViteEntry = join(frontendRoot, 'node_modules', 'vite', 'bin', 'vite.js');
+const rootViteEntry = join(root, 'node_modules', 'vite', 'bin', 'vite.js');
+const viteEntry = existsSync(frontendViteEntry) ? frontendViteEntry : rootViteEntry;
+const frontendDist = join(frontendRoot, 'dist', 'index.html');
 
 function fail(message) {
   console.error(`[DayZ AIO Service] ${message}`);
@@ -27,7 +30,7 @@ function fail(message) {
 
 if (!existsSync(envFile)) fail('apps/backend/.env missing. Run install-windows.bat first.');
 if (!existsSync(backendEntry)) fail('Backend build output missing. Run install-windows.bat first.');
-if (!existsSync(viteEntry)) fail('Vite CLI missing. Run install-windows.bat first.');
+if (!existsSync(viteEntry)) fail('Vite CLI missing in apps/frontend/node_modules or root node_modules. Run install-windows.bat first.');
 if (!existsSync(frontendDist)) fail('Frontend build output missing. Run install-windows.bat first.');
 
 const children = [];
@@ -48,8 +51,8 @@ function startManaged(name, command, args, options = {}) {
     ...options,
   });
 
-  child.stdout.pipe(stdout);
-  child.stderr.pipe(stderr);
+  child.stdout?.pipe(stdout);
+  child.stderr?.pipe(stderr);
 
   child.on('exit', (code, signal) => {
     stdout.end();
@@ -60,13 +63,18 @@ function startManaged(name, command, args, options = {}) {
     }
   });
 
-  children.push({ name, child });
+  children.push({ name, child, supportsIpc: options.supportsIpc === true });
   console.log(`[DayZ AIO Service] Started ${name} pid=${child.pid}`);
   return child;
 }
 
-startManaged('backend', process.execPath, [backendEntry]);
+startManaged('backend', process.execPath, [backendEntry], {
+  stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+  supportsIpc: true,
+});
+
 startManaged('frontend', process.execPath, [viteEntry, 'preview', '--host', '0.0.0.0', '--port', '3100', '--strictPort'], {
+  cwd: frontendRoot,
   env: {
     ...process.env,
     VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || 'http://localhost:8090',
@@ -74,13 +82,10 @@ startManaged('frontend', process.execPath, [viteEntry, 'preview', '--host', '0.0
 });
 
 async function terminateChild(entry, timeoutMs = 12000) {
-  const { name, child } = entry;
+  const { name, child, supportsIpc } = entry;
   if (!child || child.exitCode !== null || child.signalCode !== null) return;
 
-  console.log(`[DayZ AIO Service] Sending SIGTERM to ${name} pid=${child.pid}`);
-  child.kill('SIGTERM');
-
-  const exited = await new Promise((resolveExit) => {
+  const exitedPromise = new Promise((resolveExit) => {
     const timer = setTimeout(() => resolveExit(false), timeoutMs);
     child.once('exit', () => {
       clearTimeout(timer);
@@ -88,6 +93,23 @@ async function terminateChild(entry, timeoutMs = 12000) {
     });
   });
 
+  if (supportsIpc && child.connected) {
+    console.log(`[DayZ AIO Service] Sending IPC shutdown to ${name} pid=${child.pid}`);
+    try {
+      child.send({ type: 'dayz-aio.shutdown', reason: 'service-stop' });
+    } catch (error) {
+      console.error(`[DayZ AIO Service] Failed to send IPC shutdown to ${name}:`, error);
+    }
+  } else {
+    console.log(`[DayZ AIO Service] Sending SIGTERM to ${name} pid=${child.pid}`);
+    try {
+      child.kill('SIGTERM');
+    } catch (error) {
+      console.error(`[DayZ AIO Service] Failed to signal ${name}:`, error);
+    }
+  }
+
+  const exited = await exitedPromise;
   if (!exited) {
     console.error(`[DayZ AIO Service] ${name} did not exit after ${timeoutMs}ms; forcing process tree termination.`);
     await forceKillTree(child.pid);

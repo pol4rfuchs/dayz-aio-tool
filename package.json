@@ -1,7 +1,7 @@
 {
   "name": "dayz-aio",
   "private": true,
-  "version": "0.5.7-service-shutdown-semantics",
+  "version": "0.5.8-service-ipc-shutdown-fix",
   "description": "DayZ AIO Server Manager - modular DayZ Standalone control plane",
   "workspaces": [
     "apps/backend",
