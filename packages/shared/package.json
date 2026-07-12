@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/shared",
-  "version": "0.4.9-ci-test-path-encoding-fix",
+  "version": "0.5.0-test-coverage-pack",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
