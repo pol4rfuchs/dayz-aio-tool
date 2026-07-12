@@ -43,7 +43,7 @@ export function ModUpdater({ selectedServerId, setSelectedServerId }: Props) {
     ]);
     setPreflight(nextPreflight);
     setSyncReport(nextReport);
-    setJobs(nextJobs.items.filter((job) => job.action === "mods-update"));
+    setJobs(nextJobs.items.filter((job) => ["mods-update", "workshop-sync"].includes(job.action)));
   }
 
   useEffect(() => { refresh().catch(() => undefined); setKeyPlan(null); }, [selectedServerId]);
@@ -63,9 +63,9 @@ export function ModUpdater({ selectedServerId, setSelectedServerId }: Props) {
   }
 
   async function syncFromStaging() {
-    const result = await apiPost<{ ok: boolean; results: Array<{ workshopId: string; copied: boolean }>; report: WorkshopSyncReport }>(`/api/servers/${selectedServerId}/updates/workshop-sync-from-staging`);
-    setSyncReport(result.report);
-    setMessage(`Staging sync completed: ${result.results.filter((item) => item.copied).length}/${result.results.length} copied.`);
+    const result = await apiPost<{ queued: boolean; jobId: string; count: number }>(`/api/servers/${selectedServerId}/updates/workshop-sync-from-staging`);
+    setMessage(`Workshop staging sync queued: ${result.count} items · job ${result.jobId}`);
+    await refresh();
   }
 
   async function planKeySync() {
@@ -142,8 +142,8 @@ export function ModUpdater({ selectedServerId, setSelectedServerId }: Props) {
       </div>
 
       <div className="panel glass">
-        <h2>Latest Mod Update Job</h2>
-        {latestJob ? <UpdateJobProgress job={latestJob} title="Latest mod update"/> : <p className="muted">No mod update job yet.</p>}
+        <h2>Latest Mod / Sync Job</h2>
+        {latestJob ? <UpdateJobProgress job={latestJob} title={latestJob.action === "workshop-sync" ? "Latest staging sync" : "Latest mod update"}/> : <p className="muted">No mod update job yet.</p>}
       </div>
     </section>
 

@@ -214,11 +214,8 @@ export function Mods({ selectedServerId, setSelectedServerId }: Props) {
       </div>
       <div className="panel glass">
         <h2>Update Jobs</h2>
-        <div className="timeline">
-          {updateJobs.map((job) => <article className="timeline-item" key={job.id}>
-            <div><strong>{job.action} · {job.status}</strong><span>{job.completed}/{job.total} done · failed {job.failed} · {new Date(job.updatedAt).toLocaleString()}</span></div>
-            {job.results.length ? <pre className="logbox small">{job.results.slice(-3).map((item) => item.outputTail || JSON.stringify(item, null, 2)).join("\n\n---\n\n")}</pre> : null}
-          </article>)}
+        <div className="update-job-list">
+          {updateJobs.map((job) => <UpdateJobProgress job={job} key={job.id} title={job.action === "workshop-sync" ? "Staging sync" : job.action === "server-update" ? "Server update" : "Workshop mod update"} compact={updateJobs.indexOf(job) > 0}/>)}
           {!updateJobs.length ? <p className="muted">No update jobs yet.</p> : null}
         </div>
       </div>

@@ -67,7 +67,7 @@ function steamFailureReason(exitCode: number, analysis: ReturnType<typeof parseS
 type UpdateJob = {
   id: string;
   serverId: string;
-  action: "server-update" | "mods-update";
+  action: "server-update" | "mods-update" | "workshop-sync";
   status: "queued" | "running" | "completed" | "failed";
   total: number;
   completed: number;
@@ -383,15 +383,28 @@ export async function updateRoutes(app: FastifyInstance) {
       const preflight = await updaterPreflight(server);
       if (preflight.checks.some((check) => check.name === "server_stopped" && check.status === "fail")) return reply.code(400).send({ error: "Stop the DayZ server before syncing Workshop folders from staging.", preflight });
       const modIds = preflight.modIds;
-      const results: Array<{ workshopId: string; copied: boolean }> = [];
-      for (const workshopId of modIds) {
-        const copied = await copyWorkshopItemToServer(server, workshopId);
-        if (copied) registerNumericWorkshopMod(serverId, workshopId);
-        results.push({ workshopId, copied });
-      }
-      const report = await workshopSyncReport(server);
-      writeAudit({ serverId, action: "updates.workshop_sync_from_staging", target: "workshop staging", metadata: { total: results.length, copied: results.filter((item) => item.copied).length } });
-      return { ok: results.every((item) => item.copied), results, report };
+      if (!modIds.length) return reply.code(400).send({ error: "No Workshop IDs found. Run Launch Profile Import or Mods scan first.", preflight });
+
+      const job: UpdateJob = { id: crypto.randomUUID(), serverId, action: "workshop-sync", status: "queued", total: modIds.length, completed: 0, failed: 0, results: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      enqueueUpdateJob(job, async () => {
+        for (const workshopId of modIds) {
+          updateJob(job, { current: `copy ${workshopId} from staging` });
+          const source = path.join(workshopStagingRoot(server), "steamapps", "workshop", "content", DAYZ_WORKSHOP_APP_ID, workshopId);
+          const destination = path.join(server.rootPath, workshopId);
+          const copied = await copyWorkshopItemToServer(server, workshopId);
+          if (copied) registerNumericWorkshopMod(serverId, workshopId);
+          const failed = copied ? 0 : 1;
+          const outputTail = copied
+            ? `Copied Workshop ${workshopId}\nfrom: ${source}\nto:   ${destination}`
+            : `Missing staging download for Workshop ${workshopId}\nexpected: ${source}`;
+          const verification = { ok: copied, reason: copied ? "workshop_item_copied_from_staging" : "missing_staging_download", source, destination };
+          job.results.push({ target: `workshop ${workshopId}`, exitCode: copied ? 0 : 1, outputTail, copied, verification });
+          updateJob(job, { completed: job.completed + 1, failed: job.failed + failed, results: job.results });
+        }
+        const copiedCount = job.results.filter((item) => item.copied).length;
+        writeAudit({ serverId, action: job.failed ? "updates.workshop_sync_from_staging.failed" : "updates.workshop_sync_from_staging", target: "workshop staging", metadata: { jobId: job.id, total: job.total, copied: copiedCount, failed: job.failed } });
+      });
+      return reply.code(202).send({ ok: true, queued: true, jobId: job.id, count: modIds.length, preflight });
     } catch (error) { return sendError(reply, error); }
   });
 

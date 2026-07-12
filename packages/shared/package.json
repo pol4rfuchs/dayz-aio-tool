@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/shared",
-  "version": "0.5.10-notification-roadmap-cleanup",
+  "version": "0.5.11-updater-job-progress-fix",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

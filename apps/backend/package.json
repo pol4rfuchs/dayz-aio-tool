@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/backend",
-  "version": "0.5.10-notification-roadmap-cleanup",
+  "version": "0.5.11-updater-job-progress-fix",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

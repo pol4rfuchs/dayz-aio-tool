@@ -178,3 +178,40 @@ code {
 .stat-grid strong { display: block; font-size: 24px; }
 .stat-grid span { display: block; color: #8faf9c; font-size: 12px; margin-top: 4px; }
 @media (max-width: 780px) { .stat-grid { grid-template-columns: 1fr 1fr; } }
+
+.audit-timeline .timeline-item { align-items: stretch; }
+.audit-item > div { min-width: 0; width: 100%; }
+.audit-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.audit-summary-grid div {
+  min-width: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,.18);
+  border: 1px solid rgba(255,255,255,.07);
+}
+.audit-summary-grid span,
+.audit-summary-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.audit-summary-grid span {
+  color: #8faf9c;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.audit-summary-grid strong {
+  margin-top: 4px;
+  color: #eafff3;
+  font-size: 13px;
+}
+.audit-raw-json { margin-top: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.update-job-list { display: grid; gap: 12px; margin-top: 14px; }
+@media (max-width: 780px) { .audit-summary-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .audit-summary-grid { grid-template-columns: 1fr; } }
