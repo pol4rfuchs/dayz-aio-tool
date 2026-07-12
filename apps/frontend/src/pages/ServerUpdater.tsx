@@ -14,6 +14,8 @@ export function ServerUpdater({ selectedServerId, setSelectedServerId }: Props) 
   const [servers, setServers] = useState<ServerRecord[]>([]);
   const [steamUsername, setSteamUsername] = useState(() => localStorage.getItem("dayz_aio_steam_username") || "");
   const [steamLoginMode, setSteamLoginMode] = useState<"anonymous" | "user">(() => (localStorage.getItem("dayz_aio_steam_login_mode") === "user" ? "user" : "anonymous"));
+  const [steamPassword, setSteamPassword] = useState("");
+  const [steamGuardCode, setSteamGuardCode] = useState("");
   const [preflight, setPreflight] = useState<UpdatePreflight | null>(null);
   const [state, setState] = useState<ServerState | null>(null);
   const [jobs, setJobs] = useState<UpdateJob[]>([]);
@@ -24,7 +26,14 @@ export function ServerUpdater({ selectedServerId, setSelectedServerId }: Props) 
     localStorage.setItem("dayz_aio_steam_login_mode", steamLoginMode);
     if (user) localStorage.setItem("dayz_aio_steam_username", user);
     else localStorage.removeItem("dayz_aio_steam_username");
-    return steamLoginMode === "user" ? { steamLoginMode: "user", steamUsername: user } : { steamLoginMode: "anonymous" };
+    const password = steamPassword;
+    const guardCode = steamGuardCode.trim();
+    return steamLoginMode === "user" ? {
+      steamLoginMode: "user",
+      steamUsername: user,
+      ...(password ? { steamPassword: password } : {}),
+      ...(guardCode ? { steamGuardCode: guardCode } : {})
+    } : { steamLoginMode: "anonymous" };
   }
 
   function updatePreflightPath() {
@@ -102,14 +111,16 @@ export function ServerUpdater({ selectedServerId, setSelectedServerId }: Props) 
         <div className="panel-title"><ServerCog size={20}/><h2>Dedicated Server State</h2></div>
         <div className="actions">
           <button className="secondary" onClick={refresh} disabled={!selectedServerId}><RefreshCcw size={18}/>Refresh</button>
-          <button className="secondary" onClick={openSteamCmdLogin} disabled={!selectedServerId || steamLoginMode !== "user" || !steamUsername.trim()}><KeyRound size={18}/>Open SteamCMD login</button>
+          
           <button onClick={updateServer} disabled={!selectedServerId}><UploadCloud size={18}/>Update DayZ Server</button>
         </div>
         <div className="form-grid">
-          <label>Steam login mode <select value={steamLoginMode} onChange={(event) => setSteamLoginMode(event.target.value as "anonymous" | "user")}><option value="anonymous">anonymous</option><option value="user">Steam user/session</option></select></label>
-          <label>Steam login user <input value={steamUsername} onChange={(event) => setSteamUsername(event.target.value)} placeholder="Steam username; password never stored" disabled={steamLoginMode === "anonymous"} /></label>
+          <label>Steam login mode <select value={steamLoginMode} onChange={(event) => setSteamLoginMode(event.target.value as "anonymous" | "user")}><option value="anonymous">anonymous</option><option value="user">Steam user/password</option></select></label>
+          <label>Steam login user <input value={steamUsername} onChange={(event) => setSteamUsername(event.target.value)} placeholder="Steam username" disabled={steamLoginMode === "anonymous"} /></label>
+          <label>Steam password <input type="password" value={steamPassword} onChange={(event) => setSteamPassword(event.target.value)} placeholder="Used for this job only" disabled={steamLoginMode === "anonymous"} autoComplete="off" /></label>
+          <label>Steam Guard code <input value={steamGuardCode} onChange={(event) => setSteamGuardCode(event.target.value)} placeholder="Optional current 2FA code" disabled={steamLoginMode === "anonymous"} autoComplete="one-time-code" /></label>
         </div>
-        <p className="hint">Kein Passwort-Speichern. Mit „Open SteamCMD login“ öffnet AIO ein lokales SteamCMD-Fenster für Passwort/Steam Guard. Danach wird nur die gecachte Session genutzt.</p>
+        <p className="hint">Passwort wird nicht gespeichert. Es wird nur für den gestarteten SteamCMD-Job an SteamCMD übergeben und in Logs/Audit maskiert. Bei Steam Guard aktuellen Code eintragen und erneut starten.</p>
         {message ? <p className="hint">{message}</p> : null}
         {state ? <div className="timeline">
           <article className="timeline-item"><div><strong>Executable</strong><span>{state.exe.exists ? `${state.exe.productVersion || state.exe.fileVersion || "unknown"} · ${state.exe.lastWriteTime || "no time"}` : "missing"}</span></div></article>

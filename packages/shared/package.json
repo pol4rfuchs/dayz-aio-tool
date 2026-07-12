@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/shared",
-  "version": "0.5.15-steamcmd-login-helper-fallback",
+  "version": "0.5.17-steamcmd-secret-redaction-coverage",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

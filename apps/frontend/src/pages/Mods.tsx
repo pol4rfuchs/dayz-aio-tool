@@ -28,13 +28,22 @@ export function Mods({ selectedServerId, setSelectedServerId }: Props) {
   const [keyPlan, setKeyPlan] = useState<KeySyncPlan | null>(null);
   const [steamUsername, setSteamUsername] = useState(() => localStorage.getItem("dayz_aio_steam_username") || "");
   const [steamLoginMode, setSteamLoginMode] = useState<"anonymous" | "user">(() => (localStorage.getItem("dayz_aio_steam_login_mode") === "user" ? "user" : "anonymous"));
+  const [steamPassword, setSteamPassword] = useState("");
+  const [steamGuardCode, setSteamGuardCode] = useState("");
 
   function steamAuthPayload() {
     const user = steamUsername.trim();
     localStorage.setItem("dayz_aio_steam_login_mode", steamLoginMode);
     if (user) localStorage.setItem("dayz_aio_steam_username", user);
     else localStorage.removeItem("dayz_aio_steam_username");
-    return steamLoginMode === "user" ? { steamLoginMode: "user", steamUsername: user } : { steamLoginMode: "anonymous" };
+    const password = steamPassword;
+    const guardCode = steamGuardCode.trim();
+    return steamLoginMode === "user" ? {
+      steamLoginMode: "user",
+      steamUsername: user,
+      ...(password ? { steamPassword: password } : {}),
+      ...(guardCode ? { steamGuardCode: guardCode } : {})
+    } : { steamLoginMode: "anonymous" };
   }
 
   function updatePreflightPath() {
@@ -128,13 +137,13 @@ export function Mods({ selectedServerId, setSelectedServerId }: Props) {
   }
 
   async function installWorkshop() {
-    const r = await apiPost<{ queued: boolean; jobId: string; folderName: string }>(`/api/servers/${selectedServerId}/workshop/install`, { workshopId, folderName, username: steamLoginMode === "user" ? steamUsername.trim() : "anonymous" });
+    const r = await apiPost<{ queued: boolean; jobId: string; folderName: string }>(`/api/servers/${selectedServerId}/workshop/install`, { workshopId, folderName, ...steamAuthPayload() });
     setMessage(`Workshop install queued: ${r.folderName} · job ${r.jobId}`);
     await loadUpdateJobs();
   }
 
   async function updateEnabledWorkshop() {
-    const r = await apiPost<{ queued: boolean; jobId: string; count: number }>(`/api/servers/${selectedServerId}/workshop/update-enabled`, { username: steamLoginMode === "user" ? steamUsername.trim() : "anonymous" });
+    const r = await apiPost<{ queued: boolean; jobId: string; count: number }>(`/api/servers/${selectedServerId}/workshop/update-enabled`, steamAuthPayload());
     setMessage(`Enabled Workshop update queued: ${r.count} mods · job ${r.jobId}`);
     await loadUpdateJobs();
   }
@@ -207,13 +216,15 @@ export function Mods({ selectedServerId, setSelectedServerId }: Props) {
         <div className="panel-title"><UploadCloud size={20}/><h2>Updater</h2></div>
         <p className="muted">Dedicated Server: AppID 223350. Workshop Mods: IDs aus Launch Profile und Mod-Tabelle, Staging unter <code>..\Workshop</code>, danach Copy nach Serverroot.</p>
         <div className="form-grid">
-          <label>Steam login mode <select value={steamLoginMode} onChange={(e) => setSteamLoginMode(e.target.value as "anonymous" | "user")}><option value="anonymous">anonymous</option><option value="user">Steam user/session</option></select></label>
-          <label>Steam login user for updates <input value={steamUsername} onChange={(e) => setSteamUsername(e.target.value)} placeholder="Steam username; password never stored" disabled={steamLoginMode === "anonymous"} /></label>
+          <label>Steam login mode <select value={steamLoginMode} onChange={(e) => setSteamLoginMode(e.target.value as "anonymous" | "user")}><option value="anonymous">anonymous</option><option value="user">Steam user/password</option></select></label>
+          <label>Steam login user for updates <input value={steamUsername} onChange={(e) => setSteamUsername(e.target.value)} placeholder="Steam username" disabled={steamLoginMode === "anonymous"} /></label>
+          <label>Steam password <input type="password" value={steamPassword} onChange={(e) => setSteamPassword(e.target.value)} placeholder="Used for this job only" disabled={steamLoginMode === "anonymous"} autoComplete="off" /></label>
+          <label>Steam Guard code <input value={steamGuardCode} onChange={(e) => setSteamGuardCode(e.target.value)} placeholder="Optional current 2FA code" disabled={steamLoginMode === "anonymous"} autoComplete="one-time-code" /></label>
         </div>
-        <p className="hint">Password is never stored here. Login mode controls SteamCMD: anonymous or cached Steam user/session. Use „Open SteamCMD login“ to enter password/Steam Guard in a local SteamCMD window.</p>
+        <p className="hint">Password is never stored. It is sent only to the local backend for this SteamCMD job and redacted from logs/audit. If Steam Guard is required, enter the current code and retry.</p>
         <div className="actions">
           <button className="secondary" onClick={runUpdatePreflight} disabled={!selectedServerId}><ServerCog size={18}/>Update preflight</button>
-          <button className="secondary" onClick={openSteamCmdLogin} disabled={!selectedServerId || steamLoginMode !== "user" || !steamUsername.trim()}><KeyRound size={18}/>Open SteamCMD login</button>
+          
           <button onClick={updateDedicatedServer} disabled={!selectedServerId}><ServerCog size={18}/>Update DayZ server</button>
           <button onClick={updateLaunchProfileMods} disabled={!selectedServerId}><DownloadCloud size={18}/>Update launch-profile mods</button>
           <button className="secondary" onClick={loadUpdateJobs} disabled={!selectedServerId}><RefreshCcw size={18}/>Refresh jobs</button>

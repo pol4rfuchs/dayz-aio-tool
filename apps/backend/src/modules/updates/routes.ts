@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { z } from "zod";
 import { getSteamCmdQueueState, runSteamCmd as runSteamCmdSerialized } from "./steamcmd.js";
-import { buildSteamAuthChecks, buildSteamCmdArgs, redactSteamCmdArgs, resolveSteamLogin, steamAuthQuerySchema, steamAuthSchema } from "./auth.js";
+import { buildSteamAuthChecks, buildSteamCmdArgs, redactSteamCmdArgs, redactSteamCmdOutputTail, resolveSteamLogin, steamAuthQuerySchema, steamAuthSchema } from "./auth.js";
 import { requireServer } from "../servers/repository.js";
 import { getRuntimeStatus } from "../process/service.js";
 import { sendError } from "../../shared/errors.js";
@@ -555,7 +555,7 @@ export async function updateRoutes(app: FastifyInstance) {
           command: `${preflight.steamcmdPath} ${redactSteamCmdArgs(args).join(" ")}`
         };
         const failed = verification.ok ? 0 : 1;
-        job.results.push({ target: `app_update ${DAYZ_DEDICATED_SERVER_APP_ID}`, exitCode: result.exitCode, outputTail: result.output.slice(-8000), verification, steam });
+        job.results.push({ target: `app_update ${DAYZ_DEDICATED_SERVER_APP_ID}`, exitCode: result.exitCode, outputTail: redactSteamCmdOutputTail(result.output, auth, 8000), verification, steam });
         updateJob(job, { completed: 1, failed, results: job.results, error: failed ? `Update verification failed: ${verification.reason}` : undefined });
         writeAudit({ serverId, action: failed ? "updates.server.failed" : "updates.server", target: DAYZ_DEDICATED_SERVER_APP_ID, metadata: { jobId: job.id, exitCode: result.exitCode, steamcmdPath: preflight.steamcmdPath, installDir: server.rootPath, verification } });
       });
@@ -587,7 +587,7 @@ export async function updateRoutes(app: FastifyInstance) {
           if (copied) registerNumericWorkshopMod(serverId, workshopId);
           const failed = !steamFailure && copied ? 0 : 1;
           const verification = { ok: failed === 0, reason: steamFailure || (!copied ? "workshop_item_not_copied_after_download" : "workshop_item_copied"), authMode: auth.mode, steam, command: `${preflight.steamcmdPath} ${redactSteamCmdArgs(args).join(" ")}` };
-          job.results.push({ target: `workshop ${workshopId}`, exitCode: result.exitCode, outputTail: result.output.slice(-5000), copied, verification, steam });
+          job.results.push({ target: `workshop ${workshopId}`, exitCode: result.exitCode, outputTail: redactSteamCmdOutputTail(result.output, auth, 5000), copied, verification, steam });
           updateJob(job, { completed: job.completed + 1, failed: job.failed + failed, results: job.results });
         }
         writeAudit({ serverId, action: job.failed ? "updates.mods.failed" : "updates.mods", target: "workshop mods", metadata: { jobId: job.id, total: job.total, failed: job.failed, workshopStagingRoot: workshopStagingRoot(server) } });

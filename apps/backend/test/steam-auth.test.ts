@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-const { buildSteamAuthChecks, buildSteamCmdArgs, detectSteamCachedSession, redactSteamCmdArgs, resolveSteamLogin } = await import("../src/modules/updates/auth.js");
+const { buildSteamAuthChecks, buildSteamCmdArgs, detectSteamCachedSession, redactSteamCmdArgs, redactSteamCmdOutput, redactSteamCmdOutputTail, resolveSteamLogin } = await import("../src/modules/updates/auth.js");
 
 test("steam auth defaults to anonymous and never stores password material", () => {
   const auth = resolveSteamLogin({ steamLoginMode: "anonymous", steamUsername: "ignored" });
@@ -35,4 +35,26 @@ test("steam auth preflight detects cached SteamCMD loginusers config", async (t)
   const preflight = await buildSteamAuthChecks(steamcmd, resolveSteamLogin({ steamLoginMode: "user", steamUsername: "lost.soldiers.eu" }));
   const sessionCheck = preflight.checks.find((check: { name: string }) => check.name === "steam_user_session");
   assert.equal(sessionCheck?.status, "pass");
+});
+
+
+test("steam auth redacts password and Steam Guard code from command labels and output tails", () => {
+  const auth = resolveSteamLogin({
+    steamLoginMode: "user",
+    steamUsername: "lost.soldiers.eu",
+    steamPassword: "SuperSecretPassword123!",
+    steamGuardCode: "ABCDE"
+  });
+  const args = buildSteamCmdArgs(auth, ["+app_update", "223350", "validate", "+quit"]);
+  assert.deepEqual(redactSteamCmdArgs(args), ["+login", "<steam-user>", "<steam-secret>", "<steam-secret>", "+app_update", "223350", "validate", "+quit"]);
+
+  const output = `SteamCMD command: +login lost.soldiers.eu SuperSecretPassword123! ABCDE +app_update 223350 validate +quit\nLogin failure for SuperSecretPassword123! with code ABCDE`;
+  const redacted = redactSteamCmdOutput(output, auth);
+  assert.equal(redacted.includes("SuperSecretPassword123!"), false);
+  assert.equal(redacted.includes("ABCDE"), false);
+  assert.equal(redacted.includes("+login <steam-user> <steam-secret> <steam-secret>"), true);
+
+  const tail = redactSteamCmdOutputTail(output, auth, 2000);
+  assert.equal(tail.includes("SuperSecretPassword123!"), false);
+  assert.equal(tail.includes("ABCDE"), false);
 });

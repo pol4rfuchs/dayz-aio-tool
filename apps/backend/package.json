@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/backend",
-  "version": "0.5.15-steamcmd-login-helper-fallback",
+  "version": "0.5.17-steamcmd-secret-redaction-coverage",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

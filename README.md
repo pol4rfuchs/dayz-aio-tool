@@ -344,3 +344,12 @@ The backend test script no longer relies on shell glob expansion. It now uses
 `apps/backend/scripts/run-tests.mjs` to discover `test/**/*.test.ts` files and
 passes explicit file paths to the Node test runner via `tsx`. This fixes GitHub
 Actions failures where `test/**/*.test.ts` was treated as a literal path.
+
+
+## Recent implementation notes
+
+### v0.5.17 — SteamCMD Secret Redaction Coverage
+
+- Added regression coverage for `+login <user> <password> <guard>` redaction.
+- Redacts Steam password and Steam Guard code from SteamCMD `outputTail` before it reaches job results, audit metadata, or the UI.
+- Keeps one-shot password handling: no DB storage, no localStorage persistence.

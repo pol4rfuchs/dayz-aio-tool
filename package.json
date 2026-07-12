@@ -1,7 +1,7 @@
 {
   "name": "dayz-aio",
   "private": true,
-  "version": "0.5.15-steamcmd-login-helper-fallback",
+  "version": "0.5.17-steamcmd-secret-redaction-coverage",
   "description": "DayZ AIO Server Manager - modular DayZ Standalone control plane",
   "workspaces": [
     "apps/backend",
