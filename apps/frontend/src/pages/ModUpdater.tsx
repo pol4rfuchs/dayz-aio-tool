@@ -72,8 +72,12 @@ export function ModUpdater({ selectedServerId, setSelectedServerId }: Props) {
       setMessage("Steam user fehlt. Wähle Steam user/session und trage deinen Steam-Login-User ein.");
       return;
     }
-    const result = await apiPost<{ launched: boolean; message: string }>(`/api/servers/${selectedServerId}/updates/steam-login-session`, { steamUsername: user, keepOpen: true });
-    setMessage(result.message || "SteamCMD login helper started.");
+    const result = await apiPost<{ launched: boolean; launchAttempted?: boolean; message: string; scriptPath?: string; manualOpenPath?: string; manualCommand?: string }>(`/api/servers/${selectedServerId}/updates/steam-login-session`, { steamUsername: user, keepOpen: true });
+    setMessage([
+      result.message || "SteamCMD login helper prepared.",
+      result.manualOpenPath ? `Fallback: ${result.manualOpenPath}` : undefined,
+      result.manualCommand ? `Command: ${result.manualCommand}` : undefined
+    ].filter(Boolean).join("\n"));
     await refresh();
   }
 

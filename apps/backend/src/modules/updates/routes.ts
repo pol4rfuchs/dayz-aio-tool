@@ -36,6 +36,7 @@ async function launchSteamCmdLoginConsole(steamcmdPath: string, steamUsername: s
   const runtimeDir = path.join(process.cwd(), ".dayz-aio-runtime", "steamcmd-login");
   await fs.mkdir(runtimeDir, { recursive: true });
   const scriptPath = path.join(runtimeDir, `steamcmd-login-${Date.now()}.cmd`);
+  const manualOpenPath = path.join(runtimeDir, "open-steamcmd-login-last.cmd");
   const command = `"${steamcmdPath}" +login "${username}" +quit`;
   const lines = [
     "@echo off",
@@ -58,41 +59,55 @@ async function launchSteamCmdLoginConsole(steamcmdPath: string, steamUsername: s
   ];
   await fs.writeFile(scriptPath, lines.join("\r\n") + "\r\n", "utf8");
 
+  const launcherLines = [
+    "@echo off",
+    "title DayZ AIO SteamCMD Login Launcher",
+    `call "${scriptPath}"`
+  ];
+  await fs.writeFile(manualOpenPath, launcherLines.join("\r\n") + "\r\n", "utf8");
+
+  const manualCommand = `cmd.exe /d /k "${scriptPath}"`;
+
   if (process.platform !== "win32") {
     return {
       launched: false,
+      launchAttempted: false,
       platform: process.platform,
       steamcmdPath,
       steamcmdRoot,
       scriptPath,
+      manualOpenPath,
+      manualCommand,
       command: `${steamcmdPath} +login <steam-user> +quit`,
-      message: "Interactive SteamCMD login console can only be launched automatically on Windows. Run the generated command manually on this platform."
+      message: "Interactive SteamCMD login console can only be launched automatically on Windows. Run the generated helper manually on this platform."
     };
   }
 
-  const psQuote = (value: string) => `'${String(value).replace(/'/g, "''")}'`;
-  const cmdScriptArg = `"${scriptPath}"`;
-  const psCommand = [
-    "$ErrorActionPreference = 'Stop'",
-    `Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d','/k',${psQuote(cmdScriptArg)}) -WorkingDirectory ${psQuote(steamcmdRoot)} -WindowStyle Normal`
-  ].join("; ");
-  const encoded = Buffer.from(psCommand, "utf16le").toString("base64");
-  const starter = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded], {
+  // Do not rely on PowerShell/start quoting alone. Create a real .cmd helper and
+  // open that helper through ComSpec. If the backend runs as a Windows service,
+  // Session-0 isolation can still prevent visible desktop windows; therefore the
+  // response always includes manualOpenPath/manualCommand as a deterministic fallback.
+  const comspec = process.env.ComSpec || "cmd.exe";
+  const startLine = `start "DayZ AIO SteamCMD Login" /D "${steamcmdRoot}" "${scriptPath}"`;
+  const starter = spawn(comspec, ["/d", "/s", "/c", startLine], {
     cwd: steamcmdRoot,
     detached: true,
     stdio: "ignore",
-    windowsHide: true
+    windowsHide: false
   });
   starter.unref();
 
   return {
     launched: true,
+    launchAttempted: true,
     platform: process.platform,
     steamcmdPath,
     steamcmdRoot,
     scriptPath,
+    manualOpenPath,
+    manualCommand,
     command: `${steamcmdPath} +login <steam-user> +quit`,
-    message: "SteamCMD login window opened. Enter password and Steam Guard there; DayZ AIO never sees or stores it."
+    message: "SteamCMD login window launch attempted. If no window appears, run the generated helper manually; this can happen when DayZ AIO runs as a Windows service."
   };
 }
 

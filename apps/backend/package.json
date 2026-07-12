@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/backend",
-  "version": "0.5.14-steamcmd-login-window-quote-fix",
+  "version": "0.5.15-steamcmd-login-helper-fallback",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
