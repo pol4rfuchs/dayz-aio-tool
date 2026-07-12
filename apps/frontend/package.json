@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/frontend",
-  "version": "0.5.6-nssm-bootstrap-service-installer",
+  "version": "0.5.7-service-shutdown-semantics",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3100 --strictPort",
