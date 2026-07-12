@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/shared",
-  "version": "0.5.1-windows-smoke-offline-fix",
+  "version": "0.5.2-windows-smoke-offline-arg-fix",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

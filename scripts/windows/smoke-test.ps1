@@ -5,6 +5,15 @@ param(
   [switch]$Offline
 )
 
+# run-logged.ps1 forwards remaining arguments through an intermediate wrapper.
+# On Windows/cmd runners, a switch such as `smoke-test-windows.bat -Offline` can
+# arrive as the first positional argument instead of binding to the [switch].
+# Normalize that form here so CI and local users both get the same behavior.
+if ($Api -ieq "-Offline") {
+  $Offline = $true
+  $Api = "http://localhost:8090"
+}
+
 $ErrorActionPreference = "Stop"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 . (Join-Path $PSScriptRoot "ensure-node.ps1")
