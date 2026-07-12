@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/backend",
-  "version": "0.5.2-windows-smoke-offline-arg-fix",
+  "version": "0.5.3-maintenance-verification-coverage",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

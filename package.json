@@ -1,7 +1,7 @@
 {
   "name": "dayz-aio",
   "private": true,
-  "version": "0.5.2-windows-smoke-offline-arg-fix",
+  "version": "0.5.3-maintenance-verification-coverage",
   "description": "DayZ AIO Server Manager - modular DayZ Standalone control plane",
   "workspaces": [
     "apps/backend",

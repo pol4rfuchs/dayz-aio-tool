@@ -2,7 +2,6 @@ import type { FastifyInstance } from "fastify";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
-import { execa } from "execa";
 import { getSteamCmdQueueState, runSteamCmd as runSteamCmdSerialized } from "./steamcmd.js";
 import { z } from "zod";
 import { requireServer } from "../servers/repository.js";
@@ -11,6 +10,7 @@ import { sendError } from "../../shared/errors.js";
 import { writeAudit } from "../audit/service.js";
 import { broadcast } from "../realtime/hub.js";
 import { getDb } from "../../db/database.js";
+import { getServerExeSnapshot, readAppManifestSummary, serverExeChanged } from "./verification.js";
 
 const DAYZ_DEDICATED_SERVER_APP_ID = "223350";
 const DAYZ_WORKSHOP_APP_ID = "221100";
@@ -80,77 +80,6 @@ type UpdateJob = {
   finishedAt?: string;
 };
 
-
-type ServerExeSnapshot = {
-  exists: boolean;
-  path: string;
-  size?: number;
-  mtimeMs?: number;
-  lastWriteTime?: string;
-  fileVersion?: string;
-  productVersion?: string;
-};
-
-async function getServerExeSnapshot(server: any): Promise<ServerExeSnapshot> {
-  const exePath = server.executablePath || path.join(server.rootPath, "DayZServer_x64.exe");
-  try {
-    const stat = await fs.stat(exePath);
-    const version = await readWindowsExeVersion(exePath);
-    return {
-      exists: true,
-      path: exePath,
-      size: stat.size,
-      mtimeMs: stat.mtimeMs,
-      lastWriteTime: stat.mtime.toISOString(),
-      fileVersion: version.fileVersion,
-      productVersion: version.productVersion
-    };
-  } catch {
-    return { exists: false, path: exePath };
-  }
-}
-
-async function readWindowsExeVersion(exePath: string) {
-  if (process.platform !== "win32") return {};
-  const ps = [
-    "-NoProfile",
-    "-ExecutionPolicy",
-    "Bypass",
-    "-Command",
-    `$v=(Get-Item -LiteralPath ${JSON.stringify(exePath)}).VersionInfo; [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); Write-Output ($v.FileVersion + '|'+ $v.ProductVersion)`
-  ];
-  try {
-    const result = await execa("powershell.exe", ps, { reject: false, all: true, timeout: 15_000 });
-    const line = String(result.all || "").trim().split(/\r?\n/).pop() || "";
-    const [fileVersion, productVersion] = line.split("|");
-    return { fileVersion: fileVersion || undefined, productVersion: productVersion || undefined };
-  } catch {
-    return {};
-  }
-}
-
-function serverExeChanged(before: ServerExeSnapshot, after: ServerExeSnapshot) {
-  if (!before.exists || !after.exists) return false;
-  return before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.fileVersion !== after.fileVersion || before.productVersion !== after.productVersion;
-}
-
-async function readAppManifestSummary(server: any) {
-  const manifest = path.join(server.rootPath, "steamapps", `appmanifest_${DAYZ_DEDICATED_SERVER_APP_ID}.acf`);
-  try {
-    const text = await fs.readFile(manifest, "utf8");
-    const pick = (key: string) => text.match(new RegExp(`"${key}"\\s+"([^\"]+)"`))?.[1];
-    return {
-      path: manifest,
-      exists: true,
-      stateFlags: pick("StateFlags"),
-      installDir: pick("installdir"),
-      lastUpdated: pick("LastUpdated"),
-      buildId: pick("buildid")
-    };
-  } catch {
-    return { path: manifest, exists: false };
-  }
-}
 
 const jobs = new Map<string, UpdateJob>();
 let updateChain: Promise<void> = Promise.resolve();
