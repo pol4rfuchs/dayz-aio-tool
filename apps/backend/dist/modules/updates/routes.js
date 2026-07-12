@@ -496,15 +496,23 @@ export async function updateRoutes(app) {
                 const afterManifest = await readAppManifestSummary(server);
                 const changed = serverExeChanged(beforeExe, afterExe);
                 const exePresent = afterExe.exists;
+                const manifestChanged = Boolean(beforeManifest.exists && afterManifest.exists && (beforeManifest.buildId !== afterManifest.buildId ||
+                    beforeManifest.lastUpdated !== afterManifest.lastUpdated ||
+                    beforeManifest.stateFlags !== afterManifest.stateFlags));
+                const alreadyCurrent = !changed && steam.hasSuccess;
                 const verification = {
-                    ok: !steamFailure && exePresent && changed,
+                    ok: !steamFailure && exePresent && (changed || alreadyCurrent || manifestChanged),
                     reason: steamFailure
                         ? steamFailure
                         : !exePresent
                             ? "dayz_server_exe_missing_after_update"
-                            : !changed
-                                ? "dayz_server_exe_unchanged_after_update"
-                                : "dayz_server_exe_changed",
+                            : changed
+                                ? "dayz_server_exe_changed"
+                                : alreadyCurrent
+                                    ? "dayz_server_already_current"
+                                    : manifestChanged
+                                        ? "dayz_server_manifest_updated"
+                                        : "dayz_server_exe_unchanged_after_update",
                     beforeExe,
                     afterExe,
                     beforeManifest,

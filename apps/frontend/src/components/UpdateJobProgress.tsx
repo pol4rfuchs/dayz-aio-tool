@@ -77,6 +77,9 @@ export function UpdateJobProgress({ job, title = "Latest update job", compact = 
   const Icon = kind === "done" ? CheckCircle2 : kind === "fail" ? XCircle : kind === "running" ? Loader2 : Clock3;
   const findings = result?.verification?.steam?.findings?.filter(Boolean) ?? [];
   const reason = result?.verification?.reason;
+  const neutralReasons = new Set(["dayz_server_already_current", "dayz_server_manifest_updated", "dayz_server_exe_changed", "workshop_item_copied", "workshop_item_copied_from_staging"]);
+  const showReasonAsAlert = Boolean(reason && !neutralReasons.has(reason) && (failed || kind === "fail"));
+  const showReasonAsInfo = Boolean(reason && neutralReasons.has(reason));
 
   return <div className={`job-progress-card ${kind}${compact ? " compact" : ""}`}>
     <div className="job-progress-header">
@@ -102,7 +105,8 @@ export function UpdateJobProgress({ job, title = "Latest update job", compact = 
     </div>
 
     {job.error ? <div className="job-progress-alert"><AlertTriangle size={16}/><span>{job.error}</span></div> : null}
-    {reason ? <div className="job-progress-alert"><AlertTriangle size={16}/><span>{reason}</span></div> : null}
+    {showReasonAsAlert ? <div className="job-progress-alert"><AlertTriangle size={16}/><span>{reason}</span></div> : null}
+    {showReasonAsInfo ? <div className="job-progress-note"><span>{reason}</span></div> : null}
     {findings.length ? <div className="job-progress-alert"><AlertTriangle size={16}/><span>{findings.slice(0, 3).join(" · ")}</span></div> : null}
 
     {!compact && output ? <pre className="logbox small job-progress-output">{output}</pre> : null}

@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/backend",
-  "version": "0.5.17-steamcmd-secret-redaction-coverage",
+  "version": "0.5.18-server-update-up-to-date-verification",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
