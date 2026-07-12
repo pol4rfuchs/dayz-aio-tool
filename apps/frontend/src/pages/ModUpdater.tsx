@@ -1,6 +1,7 @@
 import { DownloadCloud, KeyRound, RefreshCcw, ShieldAlert, UploadCloud } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ServerSelect } from "../components/ServerSelect";
+import { UpdateJobProgress } from "../components/UpdateJobProgress";
 import { apiGet, apiPost } from "../lib/api";
 import type { ServerRecord } from "../lib/types";
 
@@ -46,6 +47,14 @@ export function ModUpdater({ selectedServerId, setSelectedServerId }: Props) {
   }
 
   useEffect(() => { refresh().catch(() => undefined); setKeyPlan(null); }, [selectedServerId]);
+
+  useEffect(() => {
+    if (!selectedServerId) return;
+    const active = jobs.some((job) => !["done", "success", "succeeded", "completed", "failed", "error", "cancelled", "canceled"].includes(job.status.toLowerCase()));
+    if (!active) return;
+    const timer = window.setInterval(() => { refresh().catch(() => undefined); }, 2500);
+    return () => window.clearInterval(timer);
+  }, [selectedServerId, jobs]);
 
   async function updateMods() {
     const result = await apiPost<{ queued: boolean; jobId: string; count: number }>(`/api/servers/${selectedServerId}/updates/mods`, steamAuthPayload());
@@ -134,7 +143,7 @@ export function ModUpdater({ selectedServerId, setSelectedServerId }: Props) {
 
       <div className="panel glass">
         <h2>Latest Mod Update Job</h2>
-        {latestJob ? <div className="message warning-box"><div><strong>{latestJob.action} · {latestJob.status}</strong><p>{latestJob.completed}/{latestJob.total} done · failed {latestJob.failed}{latestJob.current ? ` · current ${latestJob.current}` : ""}</p>{latestJob.error ? <p>{latestJob.error}</p> : null}{latestJob.results.length ? <pre className="logbox small">{JSON.stringify(latestJob.results.slice(-1)[0], null, 2)}</pre> : null}</div></div> : <p className="muted">No mod update job yet.</p>}
+        {latestJob ? <UpdateJobProgress job={latestJob} title="Latest mod update"/> : <p className="muted">No mod update job yet.</p>}
       </div>
     </section>
 

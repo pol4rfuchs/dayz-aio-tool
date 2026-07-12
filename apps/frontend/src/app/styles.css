@@ -101,6 +101,43 @@ th { color: #9db8aa; background: rgba(255,255,255,.04); position: sticky; top: 0
 .progress span { display: block; height: 100%; border-radius: 999px; background: #20e68a; }
 small.muted { display: block; margin-top: 7px; color: #7e9b8d; }
 
+.job-progress-card {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, .22);
+  border: 1px solid rgba(255, 255, 255, .10);
+  min-width: 0;
+}
+.job-progress-card.queued { border-color: rgba(255, 211, 122, .32); background: rgba(255, 211, 122, .08); }
+.job-progress-card.running { border-color: rgba(32, 230, 138, .34); background: rgba(32, 230, 138, .08); }
+.job-progress-card.done { border-color: rgba(32, 230, 138, .30); background: rgba(32, 230, 138, .07); }
+.job-progress-card.fail { border-color: rgba(255, 108, 108, .34); background: rgba(255, 108, 108, .08); }
+.job-progress-card.compact { margin-top: 0; }
+.job-progress-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; min-width: 0; }
+.job-progress-title { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.job-progress-title strong, .job-progress-title span { display: block; overflow-wrap: anywhere; }
+.job-progress-title span { margin-top: 2px; color: #9db8aa; font-size: 12px; }
+.job-progress-percent { flex: 0 0 auto; border-radius: 999px; padding: 6px 10px; background: rgba(255,255,255,.10); color: #eafff3; font-size: 12px; font-weight: 900; }
+.job-progress-bar { width: 100%; height: 12px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
+.job-progress-bar span { display: block; height: 100%; min-width: 4px; border-radius: 999px; background: #20e68a; transition: width .28s ease; }
+.job-progress-card.fail .job-progress-bar span { background: #ff6c6c; }
+.job-progress-card.queued .job-progress-bar span { background: #ffd37a; }
+.job-progress-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.job-progress-meta div { min-width: 0; border-radius: 14px; padding: 10px 12px; background: rgba(0,0,0,.18); border: 1px solid rgba(255,255,255,.07); }
+.job-progress-meta span, .job-progress-meta strong { display: block; overflow-wrap: anywhere; }
+.job-progress-meta span { color: #8faf9c; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.job-progress-meta strong { margin-top: 4px; color: #eafff3; font-size: 13px; }
+.job-progress-alert { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 14px; color: #ffd37a; background: rgba(255,211,122,.10); border: 1px solid rgba(255,211,122,.22); overflow-wrap: anywhere; }
+.job-progress-output { margin: 0; min-height: 0; max-height: 240px; }
+.job-progress-note { margin: 0; font-size: 13px; }
+.spin { animation: dayz-spin 1s linear infinite; }
+@keyframes dayz-spin { to { transform: rotate(360deg); } }
+@media (max-width: 780px) { .job-progress-meta { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .job-progress-header { flex-direction: column; } .job-progress-meta { grid-template-columns: 1fr; } }
+
 .narrow-page {
   max-width: 980px;
 }

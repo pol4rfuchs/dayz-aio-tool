@@ -1,6 +1,7 @@
 import { DownloadCloud, GripVertical, Package, RefreshCcw, Save, ServerCog, ShieldAlert, UploadCloud } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ServerSelect } from "../components/ServerSelect";
+import { UpdateJobProgress } from "../components/UpdateJobProgress";
 import { apiGet, apiPost, apiPut } from "../lib/api";
 import type { ServerRecord } from "../lib/types";
 
@@ -59,6 +60,14 @@ export function Mods({ selectedServerId, setSelectedServerId }: Props) {
     setUpdatePreflight(null);
     setKeyPlan(null);
   }, [selectedServerId]);
+
+  useEffect(() => {
+    if (!selectedServerId) return;
+    const active = updateJobs.some((job) => !["done", "success", "succeeded", "completed", "failed", "error", "cancelled", "canceled"].includes(job.status.toLowerCase()));
+    if (!active) return;
+    const timer = window.setInterval(() => { loadUpdateJobs().catch(() => undefined); }, 2500);
+    return () => window.clearInterval(timer);
+  }, [selectedServerId, updateJobs]);
 
   const modParam = useMemo(() => mods.filter((m) => m.enabled).map((m) => m.folderName).join(";"), [mods]);
 
@@ -187,7 +196,7 @@ export function Mods({ selectedServerId, setSelectedServerId }: Props) {
           <article className="timeline-item"><div><strong>Mods detected</strong><span>{updatePreflight.modIds.length} Workshop IDs</span></div></article>
           {updatePreflight.checks.map((check) => <article className="timeline-item" key={check.name}><div><strong>{check.name}</strong><span>{check.status} · {check.message}</span></div></article>)}
         </div> : null}
-        {latestJob ? <div className="message warning-box"><div><strong>Latest update job</strong><p>{latestJob.action} · {latestJob.status} · {latestJob.completed}/{latestJob.total} done · failed {latestJob.failed}{latestJob.current ? ` · current ${latestJob.current}` : ""}</p>{latestJob.error ? <p>{latestJob.error}</p> : null}{latestJob.results?.length ? <pre className="logbox small">{latestJob.results[latestJob.results.length - 1].outputTail || "No SteamCMD output yet."}</pre> : null}</div></div> : null}
+        {latestJob ? <UpdateJobProgress job={latestJob} title="Latest update job"/> : null}
       </div>
     </section>
 
@@ -208,7 +217,7 @@ export function Mods({ selectedServerId, setSelectedServerId }: Props) {
         <div className="timeline">
           {updateJobs.map((job) => <article className="timeline-item" key={job.id}>
             <div><strong>{job.action} · {job.status}</strong><span>{job.completed}/{job.total} done · failed {job.failed} · {new Date(job.updatedAt).toLocaleString()}</span></div>
-            {job.results.length ? <pre className="logbox small">{JSON.stringify(job.results.slice(-3), null, 2)}</pre> : null}
+            {job.results.length ? <pre className="logbox small">{job.results.slice(-3).map((item) => item.outputTail || JSON.stringify(item, null, 2)).join("\n\n---\n\n")}</pre> : null}
           </article>)}
           {!updateJobs.length ? <p className="muted">No update jobs yet.</p> : null}
         </div>

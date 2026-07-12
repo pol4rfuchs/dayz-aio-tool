@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/backend",
-  "version": "0.5.8-service-ipc-shutdown-fix",
+  "version": "0.5.9-updater-progress-ui",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

@@ -1,6 +1,7 @@
 import { RefreshCcw, ServerCog, ShieldCheck, UploadCloud } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ServerSelect } from "../components/ServerSelect";
+import { UpdateJobProgress } from "../components/UpdateJobProgress";
 import { apiGet, apiPost } from "../lib/api";
 import type { ServerRecord } from "../lib/types";
 
@@ -44,6 +45,14 @@ export function ServerUpdater({ selectedServerId, setSelectedServerId }: Props) 
   }
 
   useEffect(() => { refresh().catch(() => undefined); }, [selectedServerId]);
+
+  useEffect(() => {
+    if (!selectedServerId) return;
+    const active = jobs.some((job) => !["done", "success", "succeeded", "completed", "failed", "error", "cancelled", "canceled"].includes(job.status.toLowerCase()));
+    if (!active) return;
+    const timer = window.setInterval(() => { refresh().catch(() => undefined); }, 2500);
+    return () => window.clearInterval(timer);
+  }, [selectedServerId, jobs]);
 
   async function updateServer() {
     const result = await apiPost<{ queued: boolean; jobId: string }>(`/api/servers/${selectedServerId}/updates/server`, steamAuthPayload());
@@ -93,11 +102,11 @@ export function ServerUpdater({ selectedServerId, setSelectedServerId }: Props) 
 
     <section className="panel glass">
       <h2>Server Update Jobs</h2>
-      {latestJob ? <div className="message warning-box"><div><strong>Latest server update</strong><p>{latestJob.status} · {latestJob.completed}/{latestJob.total} done · failed {latestJob.failed}{latestJob.current ? ` · current ${latestJob.current}` : ""}</p>{latestJob.error ? <p>{latestJob.error}</p> : null}</div></div> : null}
+      {latestJob ? <UpdateJobProgress job={latestJob} title="Latest server update"/> : null}
       <div className="timeline">
         {jobs.map((job) => <article className="timeline-item" key={job.id}>
           <div><strong>{job.action} · {job.status}</strong><span>{job.completed}/{job.total} done · failed {job.failed} · {new Date(job.updatedAt).toLocaleString()}</span></div>
-          {job.results.length ? <pre className="logbox small">{JSON.stringify(job.results.slice(-1)[0], null, 2)}</pre> : null}
+          {job.results.length ? <pre className="logbox small">{job.results.slice(-1)[0].outputTail || JSON.stringify(job.results.slice(-1)[0], null, 2)}</pre> : null}
         </article>)}
         {!jobs.length ? <p className="muted">No server update jobs yet.</p> : null}
       </div>
