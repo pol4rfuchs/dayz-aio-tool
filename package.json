@@ -1,7 +1,7 @@
 {
   "name": "dayz-aio",
   "private": true,
-  "version": "0.5.5-lockfile-guard-cleanup",
+  "version": "0.5.6-nssm-bootstrap-service-installer",
   "description": "DayZ AIO Server Manager - modular DayZ Standalone control plane",
   "workspaces": [
     "apps/backend",

@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/frontend",
-  "version": "0.5.5-lockfile-guard-cleanup",
+  "version": "0.5.6-nssm-bootstrap-service-installer",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3100 --strictPort",

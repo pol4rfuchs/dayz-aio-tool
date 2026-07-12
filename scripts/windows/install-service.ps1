@@ -4,31 +4,9 @@ $ServiceName = "DayZAIO"
 $Runner = Join-Path $Root "scripts\windows\service-runner.ps1"
 if (!(Test-Path $Runner)) { throw "Missing $Runner" }
 
-function Resolve-Nssm {
-  $Candidates = @(
-    (Join-Path $Root "tools\nssm\win64\nssm.exe"),
-    (Join-Path $Root "tools\nssm\nssm.exe"),
-    "nssm.exe"
-  )
-  foreach ($Candidate in $Candidates) {
-    $Cmd = Get-Command $Candidate -ErrorAction SilentlyContinue
-    if ($Cmd) { return $Cmd.Source }
-    if (Test-Path $Candidate) { return (Resolve-Path $Candidate).Path }
-  }
-  return $null
-}
+. (Join-Path $PSScriptRoot "ensure-nssm.ps1")
 
-$Nssm = Resolve-Nssm
-if (!$Nssm) {
-  throw @"
-NSSM was not found. v0.4.1 intentionally refuses the old cmd.exe Windows-service wrapper because it cannot handle SCM stop signals safely.
-
-Install NSSM and rerun this script, for example place nssm.exe at:
-  $Root\tools\nssm\win64\nssm.exe
-
-Manual fallback: run start-production-windows.bat from a normal console.
-"@
-}
+$Nssm = Ensure-Nssm
 
 $Existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 if ($Existing) { throw "Service $ServiceName already exists. Run uninstall-service-windows.bat first." }
