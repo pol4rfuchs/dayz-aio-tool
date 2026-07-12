@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/backend",
-  "version": "0.4.8-ci-windows-node-path-fix",
+  "version": "0.4.9-ci-test-path-encoding-fix",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

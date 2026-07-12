@@ -1,7 +1,7 @@
 {
   "name": "dayz-aio",
   "private": true,
-  "version": "0.4.8-ci-windows-node-path-fix",
+  "version": "0.4.9-ci-test-path-encoding-fix",
   "description": "DayZ AIO Server Manager - modular DayZ Standalone control plane",
   "workspaces": [
     "apps/backend",

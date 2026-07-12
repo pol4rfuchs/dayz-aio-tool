@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-const testRoot = new URL('../test/', import.meta.url).pathname;
+const testRoot = fileURLToPath(new URL('../test/', import.meta.url));
+const backendRoot = fileURLToPath(new URL('..', import.meta.url));
 
 function walk(dir) {
   const out = [];
@@ -45,7 +47,7 @@ const result = spawnSync(process.execPath, [
   ...files,
 ], {
   stdio: 'inherit',
-  cwd: new URL('..', import.meta.url).pathname,
+  cwd: backendRoot,
   env: process.env,
 });
 
