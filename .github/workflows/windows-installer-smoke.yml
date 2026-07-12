@@ -60,10 +60,9 @@ jobs:
         shell: cmd
         run: doctor-windows.bat
 
-      - name: Run smoke-test-windows.bat
+      - name: Run offline smoke-test-windows.bat
         shell: cmd
-        continue-on-error: true
-        run: smoke-test-windows.bat
+        run: smoke-test-windows.bat -Offline
 
       - name: Upload install/runtime logs
         if: always()
