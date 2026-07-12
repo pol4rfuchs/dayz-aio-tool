@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/shared",
-  "version": "0.5.4-lockfile-integrity-guard",
+  "version": "0.5.5-lockfile-guard-cleanup",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

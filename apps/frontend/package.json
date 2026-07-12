@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/frontend",
-  "version": "0.5.4-lockfile-integrity-guard",
+  "version": "0.5.5-lockfile-guard-cleanup",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3100 --strictPort",

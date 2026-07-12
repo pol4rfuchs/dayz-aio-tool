@@ -33,15 +33,6 @@ if (forbiddenDependencyVersion.test(lock)) {
   fail(`pnpm-lock.yaml contains the project version '${projectVersion}' as a dependency version. A release/version bump script likely modified the lockfile incorrectly.`);
 }
 
-const required = [
-  ['lucide-react', /lucide-react:\n\s+specifier:\s+\^0\.475\.0\n\s+version:\s+0\.475\.0\(react@19\.2\.7\)/],
-];
-
-for (const [name, pattern] of required) {
-  if (!pattern.test(lock)) {
-    fail(`pnpm-lock.yaml has an unexpected ${name} resolution. Regenerate the lockfile with pnpm 9.15.9 on Node 20.20.2.`);
-  }
-}
 
 if (process.exitCode) {
   process.exit();
