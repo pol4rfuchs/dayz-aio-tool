@@ -14,6 +14,7 @@ type KeySyncPlan = { serverKeysPath: string; totalKeys: number; copyCount: numbe
 export function ModUpdater({ selectedServerId, setSelectedServerId }: Props) {
   const [servers, setServers] = useState<ServerRecord[]>([]);
   const [steamUsername, setSteamUsername] = useState(() => localStorage.getItem("dayz_aio_steam_username") || "");
+  const [steamLoginMode, setSteamLoginMode] = useState<"anonymous" | "user">(() => (localStorage.getItem("dayz_aio_steam_login_mode") === "user" ? "user" : "anonymous"));
   const [preflight, setPreflight] = useState<UpdatePreflight | null>(null);
   const [syncReport, setSyncReport] = useState<WorkshopSyncReport | null>(null);
   const [jobs, setJobs] = useState<UpdateJob[]>([]);
@@ -22,9 +23,18 @@ export function ModUpdater({ selectedServerId, setSelectedServerId }: Props) {
 
   function steamAuthPayload() {
     const user = steamUsername.trim();
+    localStorage.setItem("dayz_aio_steam_login_mode", steamLoginMode);
     if (user) localStorage.setItem("dayz_aio_steam_username", user);
     else localStorage.removeItem("dayz_aio_steam_username");
-    return user ? { useSteamLogin: true, steamUsername: user } : { useSteamLogin: false };
+    return steamLoginMode === "user" ? { steamLoginMode: "user", steamUsername: user } : { steamLoginMode: "anonymous" };
+  }
+
+  function updatePreflightPath() {
+    const payload = steamAuthPayload();
+    const params = new URLSearchParams();
+    params.set("steamLoginMode", payload.steamLoginMode);
+    if ("steamUsername" in payload && payload.steamUsername) params.set("steamUsername", payload.steamUsername);
+    return `/api/servers/${selectedServerId}/updates/preflight?${params.toString()}`;
   }
 
   useEffect(() => {
@@ -37,7 +47,7 @@ export function ModUpdater({ selectedServerId, setSelectedServerId }: Props) {
   async function refresh() {
     if (!selectedServerId) return;
     const [nextPreflight, nextReport, nextJobs] = await Promise.all([
-      apiGet<UpdatePreflight>(`/api/servers/${selectedServerId}/updates/preflight`),
+      apiGet<UpdatePreflight>(updatePreflightPath()),
       apiGet<WorkshopSyncReport>(`/api/servers/${selectedServerId}/updates/workshop-sync-report`),
       apiGet<{ items: UpdateJob[] }>(`/api/updates/jobs?serverId=${encodeURIComponent(selectedServerId)}`)
     ]);
@@ -55,6 +65,17 @@ export function ModUpdater({ selectedServerId, setSelectedServerId }: Props) {
     const timer = window.setInterval(() => { refresh().catch(() => undefined); }, 2500);
     return () => window.clearInterval(timer);
   }, [selectedServerId, jobs]);
+
+  async function openSteamCmdLogin() {
+    const user = steamUsername.trim();
+    if (!user) {
+      setMessage("Steam user fehlt. Wähle Steam user/session und trage deinen Steam-Login-User ein.");
+      return;
+    }
+    const result = await apiPost<{ launched: boolean; message: string }>(`/api/servers/${selectedServerId}/updates/steam-login-session`, { steamUsername: user, keepOpen: true });
+    setMessage(result.message || "SteamCMD login helper started.");
+    await refresh();
+  }
 
   async function updateMods() {
     const result = await apiPost<{ queued: boolean; jobId: string; count: number }>(`/api/servers/${selectedServerId}/updates/mods`, steamAuthPayload());
@@ -97,11 +118,13 @@ export function ModUpdater({ selectedServerId, setSelectedServerId }: Props) {
       <div className="panel glass">
         <div className="panel-title"><DownloadCloud size={20}/><h2>Workshop Update</h2></div>
         <div className="form-grid">
-          <label>Steam login user <input value={steamUsername} onChange={(event) => setSteamUsername(event.target.value)} placeholder="Steam username; required for protected Workshop mods" /></label>
+          <label>Steam login mode <select value={steamLoginMode} onChange={(event) => setSteamLoginMode(event.target.value as "anonymous" | "user")}><option value="anonymous">anonymous</option><option value="user">Steam user/session</option></select></label>
+          <label>Steam login user <input value={steamUsername} onChange={(event) => setSteamUsername(event.target.value)} placeholder="Steam username; password never stored" disabled={steamLoginMode === "anonymous"} /></label>
         </div>
-        <p className="hint">Kein Passwort-Speichern. Bei Expansion/Workshop <code>Access Denied</code> immer Steam-Login verwenden.</p>
+        <p className="hint">Kein Passwort-Speichern. Bei Expansion/Workshop <code>Access Denied</code>, <code>No subscription</code> oder Steam Guard: Steam user/session wählen und „Open SteamCMD login“ starten.</p>
         <div className="actions">
           <button className="secondary" onClick={refresh} disabled={!selectedServerId}><RefreshCcw size={18}/>Refresh sync report</button>
+          <button className="secondary" onClick={openSteamCmdLogin} disabled={!selectedServerId || steamLoginMode !== "user" || !steamUsername.trim()}><KeyRound size={18}/>Open SteamCMD login</button>
           <button onClick={updateMods} disabled={!selectedServerId}><DownloadCloud size={18}/>Update launch-profile mods</button>
           <button className="secondary" onClick={syncFromStaging} disabled={!selectedServerId}><UploadCloud size={18}/>Sync staging → server</button>
         </div>

@@ -2,8 +2,10 @@ import type { FastifyInstance } from "fastify";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
-import { getSteamCmdQueueState, runSteamCmd as runSteamCmdSerialized } from "./steamcmd.js";
+import { spawn } from "node:child_process";
 import { z } from "zod";
+import { getSteamCmdQueueState, runSteamCmd as runSteamCmdSerialized } from "./steamcmd.js";
+import { buildSteamAuthChecks, buildSteamCmdArgs, redactSteamCmdArgs, resolveSteamLogin, steamAuthQuerySchema, steamAuthSchema } from "./auth.js";
 import { requireServer } from "../servers/repository.js";
 import { getRuntimeStatus } from "../process/service.js";
 import { sendError } from "../../shared/errors.js";
@@ -15,26 +17,76 @@ import { getServerExeSnapshot, readAppManifestSummary, serverExeChanged } from "
 const DAYZ_DEDICATED_SERVER_APP_ID = "223350";
 const DAYZ_WORKSHOP_APP_ID = "221100";
 const UPDATE_TIMEOUT_MS = 60 * 60_000;
+const steamLoginConsoleSchema = z.object({
+  steamUsername: z.string().trim().min(1, "Steam username is required"),
+  keepOpen: z.boolean().optional().default(true)
+});
 
-const updateAuthSchema = z.object({
-  steamUsername: z.string().trim().optional().default(""),
-  useSteamLogin: z.boolean().optional()
-}).optional();
 
-type SteamAuthInput = { steamUsername?: string; useSteamLogin?: boolean };
-
-function resolveSteamLogin(input?: SteamAuthInput) {
-  const user = String(input?.steamUsername || process.env.DAYZ_AIO_STEAM_USERNAME || "").trim();
-  const useLogin = Boolean(input?.useSteamLogin) || Boolean(user);
-  return { username: useLogin && user ? user : "anonymous", mode: useLogin && user ? "steam-user" : "anonymous" };
+function safeBatchArg(value: string) {
+  return String(value).replace(/"/g, "'").replace(/[\r\n]/g, "").trim();
 }
 
-function buildSteamCmdArgs(auth: { username: string }, tail: string[]) {
-  return ["+login", auth.username, ...tail];
-}
+async function launchSteamCmdLoginConsole(steamcmdPath: string, steamUsername: string, keepOpen = true) {
+  const username = safeBatchArg(steamUsername);
+  if (!username) throw new Error("Steam username is required");
+  if (!await exists(steamcmdPath)) throw new Error(`SteamCMD not found: ${steamcmdPath}`);
 
-function redactSteamCmdArgs(args: string[]) {
-  return args.map((arg, idx) => idx > 0 && args[idx - 1] === "+login" && arg !== "anonymous" ? "<steam-user>" : arg);
+  const steamcmdRoot = path.dirname(steamcmdPath);
+  const runtimeDir = path.join(process.cwd(), ".dayz-aio-runtime", "steamcmd-login");
+  await fs.mkdir(runtimeDir, { recursive: true });
+  const scriptPath = path.join(runtimeDir, `steamcmd-login-${Date.now()}.cmd`);
+  const command = `"${steamcmdPath}" +login "${username}" +quit`;
+  const lines = [
+    "@echo off",
+    "title DayZ AIO SteamCMD Login",
+    `cd /d "${steamcmdRoot}"`,
+    "echo.",
+    "echo DayZ AIO SteamCMD Login Helper",
+    "echo --------------------------------",
+    `echo User: ${username}`,
+    "echo Password is entered only in this SteamCMD window.",
+    "echo DayZ AIO does not store or receive the password.",
+    "echo Confirm Steam Guard here if SteamCMD asks for it.",
+    "echo.",
+    command,
+    "set DAYZ_AIO_STEAMCMD_LOGIN_EXIT=%ERRORLEVEL%",
+    "echo.",
+    "echo SteamCMD login helper finished with exit code %DAYZ_AIO_STEAMCMD_LOGIN_EXIT%.",
+    "echo Re-run Update preflight in DayZ AIO afterwards.",
+    keepOpen ? "pause" : "exit /b %DAYZ_AIO_STEAMCMD_LOGIN_EXIT%"
+  ];
+  await fs.writeFile(scriptPath, lines.join("\r\n") + "\r\n", "utf8");
+
+  if (process.platform !== "win32") {
+    return {
+      launched: false,
+      platform: process.platform,
+      steamcmdPath,
+      steamcmdRoot,
+      scriptPath,
+      command: `${steamcmdPath} +login <steam-user> +quit`,
+      message: "Interactive SteamCMD login console can only be launched automatically on Windows. Run the generated command manually on this platform."
+    };
+  }
+
+  const starter = spawn("cmd.exe", ["/d", "/s", "/c", `start "" "${scriptPath}"`], {
+    cwd: steamcmdRoot,
+    detached: true,
+    stdio: "ignore",
+    windowsHide: false
+  });
+  starter.unref();
+
+  return {
+    launched: true,
+    platform: process.platform,
+    steamcmdPath,
+    steamcmdRoot,
+    scriptPath,
+    command: `${steamcmdPath} +login <steam-user> +quit`,
+    message: "SteamCMD login window opened. Enter password and Steam Guard there; DayZ AIO never sees or stores it."
+  };
 }
 
 function parseSteamCmdOutput(output: string) {
@@ -315,8 +367,10 @@ async function workshopSyncReport(server: any) {
   return { serverId: server.id, rootPath: server.rootPath, steamcmdPath: resolveSteamCmdPath(server), workshopAppId: DAYZ_WORKSHOP_APP_ID, workshopStagingRoot: workshopStagingRoot(server), serverKeysPath, summary, items };
 }
 
-async function updaterPreflight(server: any) {
+async function updaterPreflight(server: any, authInput?: unknown) {
   const steamcmdPath = resolveSteamCmdPath(server);
+  const auth = resolveSteamLogin(steamAuthQuerySchema.parse(authInput) || {});
+  const authPreflight = await buildSteamAuthChecks(steamcmdPath, auth);
   const running = await isRunning(server.id);
   const modIds = collectModIdsFromLaunchAndDb(server);
   const checks = [
@@ -325,9 +379,28 @@ async function updaterPreflight(server: any) {
     { name: "dedicated_server_app", status: "pass", message: `DayZ Dedicated Server AppID ${DAYZ_DEDICATED_SERVER_APP_ID}` },
     { name: "install_dir", status: await exists(server.rootPath) ? "pass" : "fail", message: server.rootPath },
     { name: "workshop_staging", status: "pass", message: workshopStagingRoot(server) },
-    { name: "mod_ids", status: modIds.length ? "pass" : "warn", message: modIds.length ? `${modIds.length} Workshop IDs found in launch profile / mod table.` : "No numeric Workshop IDs found yet. Run Launch Profile Import or Mods scan first." }
+    { name: "mod_ids", status: modIds.length ? "pass" : "warn", message: modIds.length ? `${modIds.length} Workshop IDs found in launch profile / mod table.` : "No numeric Workshop IDs found yet. Run Launch Profile Import or Mods scan first." },
+    ...authPreflight.checks
   ];
-  return { ok: !checks.some((check) => check.status === "fail"), steamcmdPath, appId: DAYZ_DEDICATED_SERVER_APP_ID, workshopAppId: DAYZ_WORKSHOP_APP_ID, installDir: server.rootPath, workshopStagingRoot: workshopStagingRoot(server), modIds, auth: { supportsSteamLogin: true, storesPassword: false, envUsernameConfigured: Boolean(process.env.DAYZ_AIO_STEAM_USERNAME) }, checks };
+  return {
+    ok: !checks.some((check) => check.status === "fail"),
+    steamcmdPath,
+    appId: DAYZ_DEDICATED_SERVER_APP_ID,
+    workshopAppId: DAYZ_WORKSHOP_APP_ID,
+    installDir: server.rootPath,
+    workshopStagingRoot: workshopStagingRoot(server),
+    modIds,
+    auth: {
+      supportsSteamLogin: true,
+      storesPassword: false,
+      envUsernameConfigured: Boolean(process.env.DAYZ_AIO_STEAM_USERNAME),
+      selectedMode: auth.steamLoginMode,
+      username: auth.steamLoginMode === "user" ? auth.username : "",
+      cachedSessionLikely: authPreflight.session.likelyUsableForUser,
+      steamGuardLikelyNeeded: auth.steamLoginMode === "user" && !authPreflight.session.likelyUsableForUser
+    },
+    checks
+  };
 }
 
 export async function updateRoutes(app: FastifyInstance) {
@@ -349,7 +422,19 @@ export async function updateRoutes(app: FastifyInstance) {
     try {
       const { serverId } = request.params as { serverId: string };
       const server = requireServer(serverId);
-      return await updaterPreflight(server);
+      return await updaterPreflight(server, request.query);
+    } catch (error) { return sendError(reply, error); }
+  });
+
+  app.post("/api/servers/:serverId/updates/steam-login-session", async (request, reply) => {
+    try {
+      const { serverId } = request.params as { serverId: string };
+      const server = requireServer(serverId);
+      const body = steamLoginConsoleSchema.parse(request.body || {});
+      const steamcmdPath = resolveSteamCmdPath(server);
+      const result = await launchSteamCmdLoginConsole(steamcmdPath, body.steamUsername, body.keepOpen);
+      writeAudit({ serverId, action: "updates.steamcmd_login_console", target: "steam-user-session", metadata: { launched: result.launched, platform: result.platform, steamcmdPath, scriptPath: result.scriptPath, storesPassword: false } });
+      return reply.code(result.launched ? 202 : 200).send({ ok: true, storesPassword: false, ...result });
     } catch (error) { return sendError(reply, error); }
   });
 
@@ -411,10 +496,10 @@ export async function updateRoutes(app: FastifyInstance) {
   app.post("/api/servers/:serverId/updates/server", async (request, reply) => {
     try {
       const { serverId } = request.params as { serverId: string };
-      const authInput = updateAuthSchema.parse(request.body) || {};
+      const authInput = steamAuthSchema.parse(request.body) || {};
       const auth = resolveSteamLogin(authInput);
       const server = requireServer(serverId);
-      const preflight = await updaterPreflight(server);
+      const preflight = await updaterPreflight(server, authInput);
       if (preflight.checks.some((check) => check.name === "server_stopped" && check.status === "fail")) return reply.code(400).send({ error: "Stop the DayZ server before updating server binaries.", preflight });
       if (!await exists(preflight.steamcmdPath)) return reply.code(400).send({ error: `SteamCMD not found: ${preflight.steamcmdPath}`, preflight });
       const job: UpdateJob = { id: crypto.randomUUID(), serverId, action: "server-update", status: "queued", total: 1, completed: 0, failed: 0, results: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
@@ -459,10 +544,10 @@ export async function updateRoutes(app: FastifyInstance) {
   app.post("/api/servers/:serverId/updates/mods", async (request, reply) => {
     try {
       const { serverId } = request.params as { serverId: string };
-      const authInput = updateAuthSchema.parse(request.body) || {};
+      const authInput = steamAuthSchema.parse(request.body) || {};
       const auth = resolveSteamLogin(authInput);
       const server = requireServer(serverId);
-      const preflight = await updaterPreflight(server);
+      const preflight = await updaterPreflight(server, authInput);
       if (preflight.checks.some((check) => check.name === "server_stopped" && check.status === "fail")) return reply.code(400).send({ error: "Stop the DayZ server before updating Workshop mods.", preflight });
       if (!await exists(preflight.steamcmdPath)) return reply.code(400).send({ error: `SteamCMD not found: ${preflight.steamcmdPath}`, preflight });
       const modIds = preflight.modIds;

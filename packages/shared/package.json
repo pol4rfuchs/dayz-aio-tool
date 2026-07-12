@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/shared",
-  "version": "0.5.11-updater-job-progress-fix",
+  "version": "0.5.13-steamcmd-login-console",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

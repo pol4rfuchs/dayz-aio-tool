@@ -1,4 +1,4 @@
-import { DownloadCloud, GripVertical, Package, RefreshCcw, Save, ServerCog, ShieldAlert, UploadCloud } from "lucide-react";
+import { DownloadCloud, GripVertical, KeyRound, Package, RefreshCcw, Save, ServerCog, ShieldAlert, UploadCloud } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ServerSelect } from "../components/ServerSelect";
 import { UpdateJobProgress } from "../components/UpdateJobProgress";
@@ -9,7 +9,7 @@ type ModRow = { id: string; folderName: string; displayName: string; workshopId?
 type ModIssue = { severity: "error" | "warning" | "info"; code: string; mod?: string; message: string; details?: unknown };
 type ModDiagnostics = { summary: { mods: number; enabled: number; errors: number; warnings: number; info: number; duplicatePbos: number; duplicateKeys: number }; issues: ModIssue[]; declaredDependencies: Array<{ mod: string; dependencies: string[] }> };
 type WorkshopPreflight = { ok: boolean; checks: Array<{ name: string; status: "pass" | "warn" | "fail"; message: string }> };
-type UpdatePreflight = { ok: boolean; steamcmdPath: string; appId: string; workshopAppId: string; installDir: string; workshopStagingRoot: string; modIds: string[]; checks: Array<{ name: string; status: "pass" | "warn" | "fail"; message: string }> };
+type UpdatePreflight = { ok: boolean; steamcmdPath: string; appId: string; workshopAppId: string; installDir: string; workshopStagingRoot: string; modIds: string[]; auth?: { selectedMode: "anonymous" | "user"; username?: string; cachedSessionLikely?: boolean; steamGuardLikelyNeeded?: boolean; storesPassword: false }; checks: Array<{ name: string; status: "pass" | "warn" | "fail"; message: string }> };
 type UpdateJob = { id: string; action: string; status: string; total: number; completed: number; failed: number; current?: string; results: Array<{ target: string; exitCode: number; outputTail: string; copied?: boolean }>; error?: string; createdAt: string; updatedAt: string; finishedAt?: string };
 type KeySyncPlan = { serverKeysPath: string; totalKeys: number; copyCount: number; existingCount: number; missingModKeys: string[]; plan: Array<{ mod: string; source: string; target: string; action: "copy" | "exists" }> };
 type Props = { selectedServerId: string; setSelectedServerId: (id: string) => void };
@@ -27,12 +27,22 @@ export function Mods({ selectedServerId, setSelectedServerId }: Props) {
   const [updateJobs, setUpdateJobs] = useState<UpdateJob[]>([]);
   const [keyPlan, setKeyPlan] = useState<KeySyncPlan | null>(null);
   const [steamUsername, setSteamUsername] = useState(() => localStorage.getItem("dayz_aio_steam_username") || "");
+  const [steamLoginMode, setSteamLoginMode] = useState<"anonymous" | "user">(() => (localStorage.getItem("dayz_aio_steam_login_mode") === "user" ? "user" : "anonymous"));
 
   function steamAuthPayload() {
     const user = steamUsername.trim();
+    localStorage.setItem("dayz_aio_steam_login_mode", steamLoginMode);
     if (user) localStorage.setItem("dayz_aio_steam_username", user);
     else localStorage.removeItem("dayz_aio_steam_username");
-    return user ? { useSteamLogin: true, steamUsername: user } : { useSteamLogin: false };
+    return steamLoginMode === "user" ? { steamLoginMode: "user", steamUsername: user } : { steamLoginMode: "anonymous" };
+  }
+
+  function updatePreflightPath() {
+    const payload = steamAuthPayload();
+    const params = new URLSearchParams();
+    params.set("steamLoginMode", payload.steamLoginMode);
+    if ("steamUsername" in payload && payload.steamUsername) params.set("steamUsername", payload.steamUsername);
+    return `/api/servers/${selectedServerId}/updates/preflight?${params.toString()}`;
   }
 
   useEffect(() => {
@@ -44,6 +54,17 @@ export function Mods({ selectedServerId, setSelectedServerId }: Props) {
 
   async function load() {
     if (selectedServerId) setMods(await apiGet<ModRow[]>(`/api/servers/${selectedServerId}/mods`));
+  }
+
+  async function openSteamCmdLogin() {
+    const user = steamUsername.trim();
+    if (!user) {
+      setMessage("Steam user fehlt. Wähle Steam user/session und trage deinen Steam-Login-User ein.");
+      return;
+    }
+    const result = await apiPost<{ launched: boolean; message: string }>(`/api/servers/${selectedServerId}/updates/steam-login-session`, { steamUsername: user, keepOpen: true });
+    setMessage(result.message || "SteamCMD login helper started.");
+    await runUpdatePreflight();
   }
 
   async function loadUpdateJobs() {
@@ -99,17 +120,17 @@ export function Mods({ selectedServerId, setSelectedServerId }: Props) {
   }
 
   async function runUpdatePreflight() {
-    setUpdatePreflight(await apiGet<UpdatePreflight>(`/api/servers/${selectedServerId}/updates/preflight`));
+    setUpdatePreflight(await apiGet<UpdatePreflight>(updatePreflightPath()));
   }
 
   async function installWorkshop() {
-    const r = await apiPost<{ queued: boolean; jobId: string; folderName: string }>(`/api/servers/${selectedServerId}/workshop/install`, { workshopId, folderName, username: steamUsername.trim() || "anonymous" });
+    const r = await apiPost<{ queued: boolean; jobId: string; folderName: string }>(`/api/servers/${selectedServerId}/workshop/install`, { workshopId, folderName, username: steamLoginMode === "user" ? steamUsername.trim() : "anonymous" });
     setMessage(`Workshop install queued: ${r.folderName} · job ${r.jobId}`);
     await loadUpdateJobs();
   }
 
   async function updateEnabledWorkshop() {
-    const r = await apiPost<{ queued: boolean; jobId: string; count: number }>(`/api/servers/${selectedServerId}/workshop/update-enabled`, { username: steamUsername.trim() || "anonymous" });
+    const r = await apiPost<{ queued: boolean; jobId: string; count: number }>(`/api/servers/${selectedServerId}/workshop/update-enabled`, { username: steamLoginMode === "user" ? steamUsername.trim() : "anonymous" });
     setMessage(`Enabled Workshop update queued: ${r.count} mods · job ${r.jobId}`);
     await loadUpdateJobs();
   }
@@ -182,11 +203,13 @@ export function Mods({ selectedServerId, setSelectedServerId }: Props) {
         <div className="panel-title"><UploadCloud size={20}/><h2>Updater</h2></div>
         <p className="muted">Dedicated Server: AppID 223350. Workshop Mods: IDs aus Launch Profile und Mod-Tabelle, Staging unter <code>..\Workshop</code>, danach Copy nach Serverroot.</p>
         <div className="form-grid">
-          <label>Steam login user for updates <input value={steamUsername} onChange={(e) => setSteamUsername(e.target.value)} placeholder="Steam username; empty = anonymous" /></label>
+          <label>Steam login mode <select value={steamLoginMode} onChange={(e) => setSteamLoginMode(e.target.value as "anonymous" | "user")}><option value="anonymous">anonymous</option><option value="user">Steam user/session</option></select></label>
+          <label>Steam login user for updates <input value={steamUsername} onChange={(e) => setSteamUsername(e.target.value)} placeholder="Steam username; password never stored" disabled={steamLoginMode === "anonymous"} /></label>
         </div>
-        <p className="hint">Password is never stored here. Run SteamCMD login once manually for Steam Guard/session reuse. Anonymous bleibt möglich, aber bei No subscription/Access Denied wird der Job jetzt sauber FAILED.</p>
+        <p className="hint">Password is never stored here. Login mode controls SteamCMD: anonymous or cached Steam user/session. Use „Open SteamCMD login“ to enter password/Steam Guard in a local SteamCMD window.</p>
         <div className="actions">
           <button className="secondary" onClick={runUpdatePreflight} disabled={!selectedServerId}><ServerCog size={18}/>Update preflight</button>
+          <button className="secondary" onClick={openSteamCmdLogin} disabled={!selectedServerId || steamLoginMode !== "user" || !steamUsername.trim()}><KeyRound size={18}/>Open SteamCMD login</button>
           <button onClick={updateDedicatedServer} disabled={!selectedServerId}><ServerCog size={18}/>Update DayZ server</button>
           <button onClick={updateLaunchProfileMods} disabled={!selectedServerId}><DownloadCloud size={18}/>Update launch-profile mods</button>
           <button className="secondary" onClick={loadUpdateJobs} disabled={!selectedServerId}><RefreshCcw size={18}/>Refresh jobs</button>

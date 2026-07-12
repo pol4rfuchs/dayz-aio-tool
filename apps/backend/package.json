@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/backend",
-  "version": "0.5.11-updater-job-progress-fix",
+  "version": "0.5.13-steamcmd-login-console",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
