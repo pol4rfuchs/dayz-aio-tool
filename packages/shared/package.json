@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/shared",
-  "version": "0.5.13-steamcmd-login-console",
+  "version": "0.5.14-steamcmd-login-window-quote-fix",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

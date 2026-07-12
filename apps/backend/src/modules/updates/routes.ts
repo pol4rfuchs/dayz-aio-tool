@@ -70,11 +70,18 @@ async function launchSteamCmdLoginConsole(steamcmdPath: string, steamUsername: s
     };
   }
 
-  const starter = spawn("cmd.exe", ["/d", "/s", "/c", `start "" "${scriptPath}"`], {
+  const psQuote = (value: string) => `'${String(value).replace(/'/g, "''")}'`;
+  const cmdScriptArg = `"${scriptPath}"`;
+  const psCommand = [
+    "$ErrorActionPreference = 'Stop'",
+    `Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d','/k',${psQuote(cmdScriptArg)}) -WorkingDirectory ${psQuote(steamcmdRoot)} -WindowStyle Normal`
+  ].join("; ");
+  const encoded = Buffer.from(psCommand, "utf16le").toString("base64");
+  const starter = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded], {
     cwd: steamcmdRoot,
     detached: true,
     stdio: "ignore",
-    windowsHide: false
+    windowsHide: true
   });
   starter.unref();
 

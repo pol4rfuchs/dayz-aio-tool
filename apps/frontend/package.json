@@ -1,6 +1,6 @@
 {
   "name": "@dayz-aio/frontend",
-  "version": "0.5.13-steamcmd-login-console",
+  "version": "0.5.14-steamcmd-login-window-quote-fix",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3100 --strictPort",
