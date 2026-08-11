@@ -1,0 +1,90 @@
+name: Dependabot Auto Lockfile
+
+# Dependabot bumps versions in package.json but does not reliably update
+# pnpm-lock.yaml in this workspace layout, so every Dependabot PR fails
+# `pnpm install --frozen-lockfile` in CI with ERR_PNPM_OUTDATED_LOCKFILE
+# before a single test ever runs. This workflow regenerates the lockfile on
+# the PR branch itself and pushes it back, so the PR's own CI run picks it
+# up on the next push.
+#
+# Uses pull_request_target (not pull_request) because GitHub gives
+# GITHUB_TOKEN read-only permissions on workflows triggered by a plain
+# pull_request event when the actor is dependabot[bot] — pushing a commit
+# back would silently fail. pull_request_target runs with the base
+# repository's token permissions instead. This is safe specifically for
+# Dependabot because Dependabot always opens branches directly in this
+# repository (never from a fork), so there is no cross-fork privilege
+# escalation risk here — the `if: github.actor == 'dependabot[bot]'` guard
+# keeps this workflow from ever running for anyone else's PR.
+#
+# Why this same lockfile drift also failed Windows Installer Smoke Test,
+# not just CI/Build & Test: scripts/windows/install.ps1 intentionally calls
+# `pnpm install` WITHOUT --frozen-lockfile, specifically so a real user's
+# install never breaks on a stale lockfile — pnpm would just resolve and
+# update it locally. But pnpm auto-enables frozen-lockfile behavior whenever
+# CI=true is set in the environment ("in CI environments this setting is
+# true by default" per pnpm's own error message), which GitHub Actions sets
+# automatically. So the installer is effectively stricter in CI than for a
+# real Windows user on the same unmodified script — that's a feature, not
+# an inconsistency to "fix": it means the smoke test catches exactly this
+# class of drift before a release ships, instead of a real user hitting it
+# first. Do not add --no-frozen-lockfile to install.ps1 to make this
+# "pass" — that would just hide the same problem one layer further out.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  update-lockfile:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.20.2"
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
+      - name: Regenerate lockfile (resolution only, no full install)
+        id: lockfile
+        run: |
+          pnpm install --no-frozen-lockfile --lockfile-only
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify lockfile integrity guard before committing
+        if: steps.lockfile.outputs.changed == 'true'
+        run: node scripts/ci/check-pnpm-lockfile.mjs
+
+      - name: Commit and push updated lockfile back to the PR branch
+        if: steps.lockfile.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore: regenerate pnpm-lock.yaml for Dependabot update"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+
+      - name: No lockfile changes needed
+        if: steps.lockfile.outputs.changed == 'false'
+        run: echo "pnpm-lock.yaml already matches package.json - nothing to commit."
