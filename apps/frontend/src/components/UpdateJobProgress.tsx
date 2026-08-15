@@ -36,7 +36,7 @@ function isFinished(status: string) {
   return ["done", "success", "succeeded", "completed", "failed", "error", "cancelled", "canceled"].includes(value);
 }
 
-function statusKind(status: string) {
+function statusKind(status: string): "done" | "running" | "queued" | "fail" {
   const value = normalizeStatus(status);
   if (["failed", "error", "cancelled", "canceled"].includes(value)) return "fail";
   if (["done", "success", "succeeded", "completed"].includes(value)) return "done";
@@ -92,23 +92,19 @@ export function UpdateJobProgress({ job, title = "Latest update job", compact = 
       </div>
       <div className="job-progress-percent">{percent}%</div>
     </div>
-
     <div className="job-progress-bar" aria-label={`${title} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} role="progressbar">
       <span style={{ width: `${percent}%` }} />
     </div>
-
     <div className="job-progress-meta">
       <div><span>Fortschritt</span><strong>{job.completed}/{job.total || "?"}</strong></div>
       <div><span>Fehler</span><strong className={failed ? "danger-text" : undefined}>{job.failed}</strong></div>
       <div><span>Aktueller Schritt</span><strong>{current}</strong></div>
       <div><span>Aktualisiert</span><strong>{formatDate(job.updatedAt)}</strong></div>
     </div>
-
     {job.error ? <div className="job-progress-alert"><AlertTriangle size={16}/><span>{job.error}</span></div> : null}
     {showReasonAsAlert ? <div className="job-progress-alert"><AlertTriangle size={16}/><span>{reason}</span></div> : null}
     {showReasonAsInfo ? <div className="job-progress-note"><span>{reason}</span></div> : null}
     {findings.length ? <div className="job-progress-alert"><AlertTriangle size={16}/><span>{findings.slice(0, 3).join(" · ")}</span></div> : null}
-
     {!compact && output ? <pre className="logbox small job-progress-output">{output}</pre> : null}
     {!compact && !output && !isFinished(job.status) ? <p className="muted job-progress-note">Warte auf SteamCMD-/Copy-Ausgabe. Der Job läuft im Backend weiter; Refresh aktualisiert den Status automatisch.</p> : null}
   </div>;
