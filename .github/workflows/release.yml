@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version ohne führendes "v", z. B. 0.5.19'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -19,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -39,12 +45,12 @@ jobs:
         run: node scripts/ci/check-pnpm-lockfile.mjs
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js 20.20.2
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -57,13 +63,32 @@ jobs:
       - name: Run backend test suite
         run: pnpm --filter @dayz-aio/backend test
 
-      - name: Derive version from tag
+      - name: Derive version and tag
         id: version
         shell: bash
         run: |
-          tag="${GITHUB_REF_NAME}"
-          version="${tag#v}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+            # führendes "v" tolerieren, falls versehentlich mit eingegeben
+            version="${version#v}"
+            tag="v${version}"
+
+            if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Version '${version}' entspricht nicht dem Format X.Y.Z (z. B. 0.5.19)."
+              exit 1
+            fi
+
+            if git rev-parse "$tag" >/dev/null 2>&1; then
+              echo "::error::Tag ${tag} existiert bereits. Andere Version wählen oder bestehenden Tag löschen."
+              exit 1
+            fi
+          else
+            tag="${GITHUB_REF_NAME}"
+            version="${tag#v}"
+          fi
+
           echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
       - name: Locate matching IMPLEMENTED changelog
         id: changelog
@@ -89,8 +114,10 @@ jobs:
           git archive --format=zip --prefix=dayz-aio/ -o "dayz-aio-v${version}.zip" HEAD
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
           name: DayZ AIO v${{ steps.version.outputs.version }}
           body: ${{ steps.changelog.outputs.body }}
           files: dayz-aio-v${{ steps.version.outputs.version }}.zip
+          target_commitish: ${{ github.sha }}
