@@ -86,8 +86,8 @@ importers:
   packages/shared:
     devDependencies:
       typescript:
-        specifier: ^5.8.0
-        version: 5.9.3
+        specifier: ^7.0.2
+        version: 7.0.2
 
 packages:
 
