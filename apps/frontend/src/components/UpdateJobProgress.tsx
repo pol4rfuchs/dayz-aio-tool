@@ -78,7 +78,7 @@ export function UpdateJobProgress({ job, title = "Latest update job", compact = 
   const findings = result?.verification?.steam?.findings?.filter(Boolean) ?? [];
   const reason = result?.verification?.reason;
   const neutralReasons = new Set(["dayz_server_already_current", "dayz_server_manifest_updated", "dayz_server_exe_changed", "workshop_item_copied", "workshop_item_copied_from_staging"]);
-  const showReasonAsAlert = Boolean(reason && !neutralReasons.has(reason) && (failed || kind === "fail"));
+  const showReasonAsAlert = Boolean(reason && !neutralReasons.has(reason) && failed);
   const showReasonAsInfo = Boolean(reason && neutralReasons.has(reason));
 
   return <div className={`job-progress-card ${kind}${compact ? " compact" : ""}`}>
