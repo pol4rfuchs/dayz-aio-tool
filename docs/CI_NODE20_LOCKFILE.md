@@ -56,3 +56,21 @@ pnpm install --frozen-lockfile
 ```
 
 Release tags require `pnpm-lock.yaml` and reject `package-lock.json`.
+
+## Dependabot-PRs und Lockfile-Drift
+
+Dependabot bumpt `package.json`, aktualisiert `pnpm-lock.yaml` im Workspace aber nicht
+zuverlässig mit. Der Workflow `dependabot-auto-lockfile.yml` fängt das automatisch ab:
+er regeneriert das Lockfile auf dem PR-Branch und pusht den Fix zurück, sobald ein
+Dependabot-PR mit `ERR_PNPM_OUTDATED_LOCKFILE` fehlschlägt.
+
+**Nie lokal in Dependabot-Branches mergen.** Ein lokaler Merge von `main` in einen
+Dependabot-Branch erzeugt fast immer Konfliktmarker in `pnpm-lock.yaml` (die Datei ist
+maschinengeneriert und nicht für manuelles Auflösen gedacht). Stattdessen:
+
+- **`@dependabot rebase`** in der PR-Konversation kommentieren — Standardfall, solange
+  der Branch nicht manuell verändert wurde.
+- **`@dependabot recreate`**, falls Dependabot den Rebase mit *"this PR has been edited
+  by someone other than Dependabot"* verweigert (z. B. nach einem versehentlichen
+  lokalen Merge). Das baut den Branch komplett neu gegen `main`, ohne dass irgendwelche
+  Konfliktmarker von Hand aufgelöst werden müssen.
