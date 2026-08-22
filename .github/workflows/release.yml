@@ -114,7 +114,7 @@ jobs:
           git archive --format=zip --prefix=dayz-aio/ -o "dayz-aio-v${version}.zip" HEAD
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: DayZ AIO v${{ steps.version.outputs.version }}
