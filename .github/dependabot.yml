@@ -1,33 +1,30 @@
 version: 2
 updates:
+  # pnpm workspace with a single root pnpm-lock.yaml: Dependabot's own
+  # guidance (dependabot/dependabot-core#11487) is to NOT also configure
+  # per-package subdirectory entries here, since they scan the same root
+  # lockfile and produce duplicate PRs for deps that live in apps/*.
+  # See PR #42/#43 (vite) and #37/#44 (lucide-react) for what that looked like.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 3
-    labels: ["dependencies", "root"]
-    ignore:
-      # pnpm workspace: single root pnpm-lock.yaml means this root entry also
-      # sees deps declared only in apps/backend/package.json. Mirror the
-      # apps/backend ignore rules here or they get bypassed (see PR #35, #39).
-      - dependency-name: "better-sqlite3"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "execa"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@types/node"
-        versions: [">=23.0.0"]
-
-  - package-ecosystem: "npm"
-    directory: "/apps/backend"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    labels: ["dependencies", "backend"]
+    open-pull-requests-limit: 8
+    labels: ["dependencies"]
     groups:
-      fastify:
+      backend:
         patterns:
           - "@fastify/*"
           - "fastify"
+        applies-to: "version-updates"
+      frontend:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+          - "react"
+          - "react-dom"
+          - "lucide-react"
+        applies-to: "version-updates"
     ignore:
       - dependency-name: "better-sqlite3"
         update-types: ["version-update:semver-major"]
@@ -35,20 +32,6 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@types/node"
         versions: [">=23.0.0"]
-
-  - package-ecosystem: "npm"
-    directory: "/apps/frontend"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    labels: ["dependencies", "frontend"]
-
-  - package-ecosystem: "npm"
-    directory: "/packages/shared"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 3
-    labels: ["dependencies", "shared"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
