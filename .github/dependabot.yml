@@ -6,6 +6,16 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 3
     labels: ["dependencies", "root"]
+    ignore:
+      # pnpm workspace: single root pnpm-lock.yaml means this root entry also
+      # sees deps declared only in apps/backend/package.json. Mirror the
+      # apps/backend ignore rules here or they get bypassed (see PR #35, #39).
+      - dependency-name: "better-sqlite3"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "execa"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        versions: [">=23.0.0"]
 
   - package-ecosystem: "npm"
     directory: "/apps/backend"
@@ -23,6 +33,8 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "execa"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        versions: [">=23.0.0"]
 
   - package-ecosystem: "npm"
     directory: "/apps/frontend"
