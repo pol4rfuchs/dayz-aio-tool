@@ -46,8 +46,8 @@ importers:
         specifier: ^7.6.12
         version: 7.6.13
       '@types/node':
-        specifier: ^22.13.0
-        version: 22.20.1
+        specifier: ^22.20.3
+        version: 22.20.3
       tsx:
         specifier: ^4.23.13
         version: 4.23.13
@@ -59,7 +59,7 @@ importers:
     dependencies:
       '@vitejs/plugin-react':
         specifier: ^6.1.1
-        version: 6.1.1(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(tsx@4.23.13))
+        version: 6.1.1(vite@8.2.2(@types/node@22.20.3)(esbuild@0.28.2)(tsx@4.23.13))
       lucide-react:
         specifier: ^1.39.0
         version: 1.39.0(react@19.2.8)
@@ -74,7 +74,7 @@ importers:
         version: 7.0.2
       vite:
         specifier: ^8.2.2
-        version: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(tsx@4.23.13)
+        version: 8.2.2(@types/node@22.20.3)(esbuild@0.28.2)(tsx@4.23.13)
     devDependencies:
       '@types/react':
         specifier: ^19.2.18
@@ -383,8 +383,8 @@ packages:
   '@types/better-sqlite3@7.6.13':
     resolution: {integrity: sha512-NMv9ASNARoKksWtsq/SHakpYAYnhBrQgGD8zkLYk/jaK8jUGn08CfEdTRgYhMypUQAfzSP8W6gNLe0q19/t4VA==}
 
-  '@types/node@22.20.1':
-    resolution: {integrity: sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q==}
+  '@types/node@22.20.3':
+    resolution: {integrity: sha512-DZmzkmwHzXrLPAXPyKNDzlIwMMUZCVacoD25ywdy5YTKGbOx/2ld+Q38Im2zJ0vBuZP5Prd3VZutKZyXwkOS8A==}
 
   '@types/react-dom@19.2.7':
     resolution: {integrity: sha512-I8bPpDLcHBv1qiIiXDCy71Rt8eQDKJP0sMSWJphDdAcdqiJ1sGpZamavoEIRZmYzjia9LuEb2HlYdDpmoENpvQ==}
@@ -1394,9 +1394,9 @@ snapshots:
 
   '@types/better-sqlite3@7.6.13':
     dependencies:
-      '@types/node': 22.20.1
+      '@types/node': 22.20.3
 
-  '@types/node@22.20.1':
+  '@types/node@22.20.3':
     dependencies:
       undici-types: 6.21.0
 
@@ -1468,10 +1468,10 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  '@vitejs/plugin-react@6.1.1(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(tsx@4.23.13))':
+  '@vitejs/plugin-react@6.1.1(vite@8.2.2(@types/node@22.20.3)(esbuild@0.28.2)(tsx@4.23.13))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(tsx@4.23.13)
+      vite: 8.2.2(@types/node@22.20.3)(esbuild@0.28.2)(tsx@4.23.13)
 
   abstract-logging@2.0.1: {}
 
@@ -2092,7 +2092,7 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(tsx@4.23.13):
+  vite@8.2.2(@types/node@22.20.3)(esbuild@0.28.2)(tsx@4.23.13):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.5
@@ -2100,7 +2100,7 @@ snapshots:
       rolldown: 1.2.5
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 22.20.1
+      '@types/node': 22.20.3
       esbuild: 0.28.2
       fsevents: 2.3.3
       tsx: 4.23.13
