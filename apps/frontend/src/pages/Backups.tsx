@@ -58,20 +58,28 @@ export function Backups({ selectedServerId, setSelectedServerId }: Props) {
 
   async function create() {
     if (!selectedServerId) return;
-    await apiPost(`/api/servers/${selectedServerId}/backups`);
-    await load();
+    try {
+      await apiPost(`/api/servers/${selectedServerId}/backups`);
+      await load();
+    } catch (error) { setMessage((error as Error).message); }
   }
 
   async function restore(id: string) {
     if (!selectedServerId) return;
-    await apiPost(`/api/servers/${selectedServerId}/backups/${id}/restore`);
-    setMessage("Restore completed.");
+    if (!window.confirm("Restore this backup? The current serverDZ.cfg / economy files will be overwritten. Stop the server first.")) return;
+    try {
+      await apiPost(`/api/servers/${selectedServerId}/backups/${id}/restore`);
+      setMessage("Restore completed.");
+    } catch (error) { setMessage((error as Error).message); }
   }
 
   async function remove(id: string) {
     if (!selectedServerId) return;
-    await apiDelete(`/api/servers/${selectedServerId}/backups/${id}`);
-    await load();
+    if (!window.confirm("Delete this backup permanently?")) return;
+    try {
+      await apiDelete(`/api/servers/${selectedServerId}/backups/${id}`);
+      await load();
+    } catch (error) { setMessage((error as Error).message); }
   }
 
   return (

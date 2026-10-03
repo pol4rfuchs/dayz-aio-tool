@@ -29,21 +29,27 @@ export function ServerConfig({ selectedServerId, setSelectedServerId }: Props) {
   }, [selectedServerId]);
 
   async function save() {
-    const r = await apiPut<{ ok: boolean }>(`/api/servers/${selectedServerId}/config/serverdz`, { content });
-    setMessage(r.ok ? "Saved with backup." : "Save failed");
+    try {
+      const r = await apiPut<{ ok: boolean }>(`/api/servers/${selectedServerId}/config/serverdz`, { content });
+      setMessage(r.ok ? "Saved with backup." : "Save failed");
+    } catch (e) { setMessage((e as Error).message); }
   }
 
   async function makeDiff() {
-    setDiff((await apiPost<{ diff: DiffLine[] }>(`/api/servers/${selectedServerId}/config/serverdz/diff`, { content })).diff);
+    try {
+      setDiff((await apiPost<{ diff: DiffLine[] }>(`/api/servers/${selectedServerId}/config/serverdz/diff`, { content })).diff);
+    } catch (e) { setMessage((e as Error).message); }
   }
 
   async function importLaunchProfile() {
     setMessage("");
-    const result = await apiPost<LaunchImportResponse>(`/api/servers/${selectedServerId}/launch-profile/import`, {});
-    setLaunchImport(result);
-    setServer(result.server);
-    setServers((prev) => prev.map((item) => item.id === result.server.id ? result.server : item));
-    setMessage(result.ok ? "Launch profile imported." : "Launch profile import failed.");
+    try {
+      const result = await apiPost<LaunchImportResponse>(`/api/servers/${selectedServerId}/launch-profile/import`, {});
+      setLaunchImport(result);
+      setServer(result.server);
+      setServers((prev) => prev.map((item) => item.id === result.server.id ? result.server : item));
+      setMessage(result.ok ? "Launch profile imported." : "Launch profile import failed.");
+    } catch (e) { setMessage((e as Error).message); }
   }
 
   return <div className="page">
