@@ -41,8 +41,9 @@ export async function analyticsRoutes(app: FastifyInstance) {
         const items = parseTypesXml(xml);
         economy = {
           items: items.length,
-          weapons: items.filter((i) => /weapon|rifle|pistol|ak|m4|mosin|sks/i.test(`${i.name} ${i.category ?? ""}`)).length,
-          food: items.filter((i) => /food|can|meat|fruit|drink/i.test(`${i.name} ${i.category ?? ""}`)).length
+          // Use the CE category instead of name regexes: /ak|can/ also matched "Snake", "Candle", "Canteen".
+          weapons: items.filter((i) => i.category?.toLowerCase() === "weapons").length,
+          food: items.filter((i) => i.category?.toLowerCase() === "food").length
         };
       } catch { /* optional */ }
       return { server: { id: server.id, name: server.name }, status, backups, mods, dbSize, economy };

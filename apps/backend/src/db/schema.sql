@@ -107,3 +107,13 @@ CREATE TABLE IF NOT EXISTS wipe_cycles (
   created_at TEXT NOT NULL,
   FOREIGN KEY(server_id) REFERENCES servers(id) ON DELETE CASCADE
 );
+
+-- Indexes for the list/sort queries used by the UI (audit log, backups, mods, schedules, tests, wipes).
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_server_created ON audit_log (server_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_backups_server_created ON backups (server_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mods_server_order ON mods (server_id, load_order, folder_name);
+CREATE INDEX IF NOT EXISTS idx_schedules_server ON schedules (server_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_schedules_due ON schedules (enabled, next_run_at);
+CREATE INDEX IF NOT EXISTS idx_test_runs_server_created ON test_runs (server_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_wipe_cycles_server_created ON wipe_cycles (server_id, created_at DESC);

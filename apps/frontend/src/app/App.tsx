@@ -1,31 +1,32 @@
 import { Activity, AlertTriangle, Archive, BarChart3, Bell, Bot, CalendarClock, Calculator, Database, DownloadCloud, FileText, HardDrive, KeyRound, Map, MessageSquare, Package, PlusCircle, Power, Radio, Rocket, ScrollText, ServerCog, ShieldCheck, TestTube2, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { AddExistingServer } from "../pages/AddExistingServer";
-import { AdvancedLab } from "../pages/AdvancedLab";
-import { Analytics } from "../pages/Analytics";
-import { AuditLog } from "../pages/AuditLog";
-import { Backups } from "../pages/Backups";
-import { CrashMonitor } from "../pages/CrashMonitor";
-import { CommunityOps } from "../pages/CommunityOps";
-import { ContentTools } from "../pages/ContentTools";
-import { Dashboard } from "../pages/Dashboard";
-import { DebugBundle } from "../pages/DebugBundle";
-import { EconomyEditor } from "../pages/EconomyEditor";
-import { Mods } from "../pages/Mods";
-import { ModUpdater } from "../pages/ModUpdater";
-import { LiveLogs } from "../pages/LiveLogs";
-import { Notifications } from "../pages/Notifications";
-import { RconAdmin } from "../pages/RconAdmin";
-import { Readiness } from "../pages/Readiness";
-import { Scheduler } from "../pages/Scheduler";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Security } from "../pages/Security";
-import { ServerControl } from "../pages/ServerControl";
-import { ServerUpdater } from "../pages/ServerUpdater";
-import { ServerConfig } from "../pages/ServerConfig";
-import { TestCenter } from "../pages/TestCenter";
-import { WipeManagement } from "../pages/WipeManagement";
 import { apiGet, getApiKey } from "../lib/api";
 import type { ServerRecord } from "../lib/types";
+
+const AddExistingServer = lazy(() => import("../pages/AddExistingServer").then((module) => ({ default: module.AddExistingServer })));
+const AdvancedLab = lazy(() => import("../pages/AdvancedLab").then((module) => ({ default: module.AdvancedLab })));
+const Analytics = lazy(() => import("../pages/Analytics").then((module) => ({ default: module.Analytics })));
+const AuditLog = lazy(() => import("../pages/AuditLog").then((module) => ({ default: module.AuditLog })));
+const Backups = lazy(() => import("../pages/Backups").then((module) => ({ default: module.Backups })));
+const CrashMonitor = lazy(() => import("../pages/CrashMonitor").then((module) => ({ default: module.CrashMonitor })));
+const CommunityOps = lazy(() => import("../pages/CommunityOps").then((module) => ({ default: module.CommunityOps })));
+const ContentTools = lazy(() => import("../pages/ContentTools").then((module) => ({ default: module.ContentTools })));
+const Dashboard = lazy(() => import("../pages/Dashboard").then((module) => ({ default: module.Dashboard })));
+const DebugBundle = lazy(() => import("../pages/DebugBundle").then((module) => ({ default: module.DebugBundle })));
+const EconomyEditor = lazy(() => import("../pages/EconomyEditor").then((module) => ({ default: module.EconomyEditor })));
+const Mods = lazy(() => import("../pages/Mods").then((module) => ({ default: module.Mods })));
+const ModUpdater = lazy(() => import("../pages/ModUpdater").then((module) => ({ default: module.ModUpdater })));
+const LiveLogs = lazy(() => import("../pages/LiveLogs").then((module) => ({ default: module.LiveLogs })));
+const Notifications = lazy(() => import("../pages/Notifications").then((module) => ({ default: module.Notifications })));
+const RconAdmin = lazy(() => import("../pages/RconAdmin").then((module) => ({ default: module.RconAdmin })));
+const Readiness = lazy(() => import("../pages/Readiness").then((module) => ({ default: module.Readiness })));
+const Scheduler = lazy(() => import("../pages/Scheduler").then((module) => ({ default: module.Scheduler })));
+const ServerControl = lazy(() => import("../pages/ServerControl").then((module) => ({ default: module.ServerControl })));
+const ServerUpdater = lazy(() => import("../pages/ServerUpdater").then((module) => ({ default: module.ServerUpdater })));
+const ServerConfig = lazy(() => import("../pages/ServerConfig").then((module) => ({ default: module.ServerConfig })));
+const TestCenter = lazy(() => import("../pages/TestCenter").then((module) => ({ default: module.TestCenter })));
+const WipeManagement = lazy(() => import("../pages/WipeManagement").then((module) => ({ default: module.WipeManagement })));
 
 type PageKey = "dashboard" | "server-control" | "server-updater" | "mod-updater" | "community" | "content-tools" | "wipe" | "security" | "add-server" | "readiness" | "config" | "economy" | "mods" | "backups" | "audit" | "scheduler" | "notifications" | "rcon" | "crash" | "live-logs" | "tests" | "debug" | "analytics" | "advanced";
 
@@ -77,6 +78,11 @@ export function App() {
   const [page, setPageState] = useState<PageKey>(initial.page);
   const [selectedServerId, setSelectedServerIdState] = useState(initial.serverId);
   const [hasApiKey, setHasApiKey] = useState(Boolean(getApiKey()));
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    apiGet<{ version?: string }>("/health").then((health) => setVersion(health.version ?? "")).catch(() => setVersion(""));
+  }, []);
 
   useEffect(() => {
     if (!hasApiKey) return;
@@ -141,7 +147,7 @@ export function App() {
       <aside className="sidebar glass">
         <div className="brand">
           <div className="brand-mark">DZ</div>
-          <div><strong>DayZ AIO</strong><span>Control Plane v0.4.3-green-security-dzsa-cleanup</span></div>
+          <div><strong>DayZ AIO</strong><span>Control Plane{version ? ` v${version}` : ""}</span></div>
         </div>
         {!hasApiKey ? <div className="mini-note danger-note"><KeyRound size={16} /> API-Key fehlt</div> : null}
         <nav>
@@ -151,7 +157,7 @@ export function App() {
         </nav>
         <div className="mini-note"><Map size={16} /> Browser Panel + Windows Backend</div>
       </aside>
-      <section className="content">{renderPage()}</section>
+      <section className="content"><Suspense fallback={<p className="muted">Loading…</p>}>{renderPage()}</Suspense></section>
     </main>
   );
 }

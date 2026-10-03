@@ -13,13 +13,15 @@ const targetSchema = z.object({
   enabled: z.boolean().default(true)
 });
 
+const NOTIFICATION_TIMEOUT_MS = 10_000;
+
 async function postNotification(target: any, message: string, title = "DayZ AIO") {
   if (target.type === "ntfy") {
     const url = target.topic ? `${String(target.url).replace(/\/$/, "")}/${target.topic}` : target.url;
-    const res = await fetch(url, { method: "POST", headers: { title }, body: message });
+    const res = await fetch(url, { method: "POST", headers: { title }, body: message, signal: AbortSignal.timeout(NOTIFICATION_TIMEOUT_MS) });
     return { ok: res.ok, status: res.status, text: await res.text().catch(() => "") };
   }
-  const res = await fetch(target.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, message }) });
+  const res = await fetch(target.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title, message }), signal: AbortSignal.timeout(NOTIFICATION_TIMEOUT_MS) });
   return { ok: res.ok, status: res.status, text: await res.text().catch(() => "") };
 }
 

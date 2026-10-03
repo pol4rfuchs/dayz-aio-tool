@@ -8,7 +8,7 @@ import { requireServer } from "../servers/repository.js";
 import { createBackup, restoreBackup } from "../backups/service.js";
 import { readServerDz, saveServerDz } from "../config/serverDz.js";
 import { validateTypesXml } from "../economy/parser.js";
-import { startServer, stopServer } from "../process/service.js";
+import { getRuntimeStatus, startServer, stopServer } from "../process/service.js";
 import { writeAudit } from "../audit/service.js";
 
 async function checkFile(filePath: string) {
@@ -26,6 +26,8 @@ export async function systemRoutes(app: FastifyInstance) {
     const id = crypto.randomUUID();
     try {
       const server = requireServer(serverId);
+      // The safety test temporarily rewrites the live serverDZ.cfg; never do that under a running server.
+      if (getRuntimeStatus(serverId).pidAlive) throw Object.assign(new Error("Stop the server before running the safety test."), { statusCode: 409 });
       const results: any[] = [];
       results.push({ name: "serverDZ.cfg exists", ...(await checkFile(path.join(server.rootPath, "serverDZ.cfg"))) });
       const typesPath = path.join(server.missionPath, "db", "types.xml");
@@ -54,6 +56,8 @@ export async function systemRoutes(app: FastifyInstance) {
   app.post("/api/servers/:serverId/tests/start-stop", async (request, reply) => {
     const { serverId } = request.params as { serverId: string };
     try {
+      // startServer is a no-op for a running server, but stopServer below would kill it.
+      if (getRuntimeStatus(serverId).pidAlive) throw Object.assign(new Error("Server is already running. The start/stop test only runs against a stopped server."), { statusCode: 409 });
       const started = await startServer(serverId);
       await new Promise((resolve) => setTimeout(resolve, 2500));
       const stopped = await stopServer(serverId);

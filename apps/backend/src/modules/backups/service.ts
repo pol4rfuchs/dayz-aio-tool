@@ -21,16 +21,29 @@ export async function createBackup(input: {
   const stamp = now.replaceAll(":", "-").replaceAll(".", "-");
   const id = crypto.randomUUID();
   const backupPath = path.join(BACKUP_DIR, input.serverId, `${stamp}_${input.type}_${id}`);
-  await fs.mkdir(backupPath, { recursive: true });
 
-  const copiedFiles: Array<{ sourcePath: string; backupFile: string }> = [];
+  // Resolve and stat everything first so a request without any existing file fails
+  // before an empty backup folder is created.
   const skippedFiles: string[] = [];
+  const existing: Array<{ sourcePath: string; relative: string }> = [];
   for (const source of input.files.filter(Boolean)) {
     const sourcePath = assertInsideRoot(server.rootPath, source);
     try {
-      const stat = await fs.stat(sourcePath);
-      if (!stat.isFile()) { skippedFiles.push(sourcePath); continue; }
-      const relative = path.relative(server.rootPath, sourcePath);
+      if ((await fs.stat(sourcePath)).isFile()) existing.push({ sourcePath, relative: path.relative(server.rootPath, sourcePath) });
+      else skippedFiles.push(sourcePath);
+    } catch {
+      skippedFiles.push(sourcePath);
+    }
+  }
+
+  if (existing.length === 0) {
+    throw Object.assign(new Error("No existing files found for backup."), { statusCode: 404 });
+  }
+
+  await fs.mkdir(backupPath, { recursive: true });
+  const copiedFiles: Array<{ sourcePath: string; backupFile: string }> = [];
+  for (const { sourcePath, relative } of existing) {
+    try {
       const target = path.join(backupPath, "files", relative);
       await fs.mkdir(path.dirname(target), { recursive: true });
       await fs.copyFile(sourcePath, target);
@@ -41,7 +54,8 @@ export async function createBackup(input: {
   }
 
   if (copiedFiles.length === 0) {
-    throw Object.assign(new Error("No existing files found for backup."), { statusCode: 404 });
+    await fs.rm(backupPath, { recursive: true, force: true });
+    throw Object.assign(new Error("Backup copy failed for all files."), { statusCode: 500 });
   }
 
   const metadata = {

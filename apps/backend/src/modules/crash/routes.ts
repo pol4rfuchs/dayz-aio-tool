@@ -6,7 +6,7 @@ import { sendError } from "../../shared/errors.js";
 import { assertInsideRoot } from "../../shared/pathGuard.js";
 import { requireServer } from "../servers/repository.js";
 import { getLogs } from "../process/service.js";
-import { writeAudit } from "../audit/service.js";
+import { READABLE_LOG_FILE } from "../logs/routes.js";
 
 const CRASH_FILE = /(?:crash|exception|dump|mdmp|rpt|script).*\.(?:log|rpt|mdmp|txt)$/i;
 const CRASH_LINE = /\b(exception|access violation|segmentation|fatal|crash|stack trace|assertion failed|out of memory|0x00020013|signature|cannot open|missing addon|OnStoreLoad|corrupted scripted variables)\b/i;
@@ -159,7 +159,6 @@ export async function crashRoutes(app: FastifyInstance) {
       }
       const classification = mergeClassifications(classifications);
       const severity = classification.severity === "ok" && (runtimeHits.length || files.some((f) => /crash|exception|dump|mdmp/i.test(f.name))) ? "warn" : classification.severity;
-      writeAudit({ serverId, action: "crash.scan", target: "logs", metadata: { files: files.length, runtimeHits: runtimeHits.length, severity, category: classification.category } });
       return { severity, classification: { ...classification, severity }, files, runtimeHits, note: "Heuristic DayZ crash intelligence. Use the recommended action as a safe workflow, not as destructive auto-repair." };
     } catch (error) { return sendError(reply, error); }
   });
@@ -170,6 +169,7 @@ export async function crashRoutes(app: FastifyInstance) {
       const file = String((request.query as any).path ?? "");
       const server = requireServer(serverId);
       const safe = assertInsideRoot(server.rootPath, file);
+      if (!READABLE_LOG_FILE.test(path.basename(safe))) throw Object.assign(new Error("Only .rpt, .adm, .log and .txt files can be read."), { statusCode: 400 });
       const content = await tail(safe);
       return { path: safe, tail: content, classification: classifyCrashText(content) };
     } catch (error) { return sendError(reply, error); }

@@ -2,7 +2,8 @@ import { Play, RefreshCcw, Square, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ServerSelect } from "../components/ServerSelect";
 import { StatusCard } from "../components/StatusCard";
-import { apiGet, apiPost, getWebSocketUrl } from "../lib/api";
+import { apiGet, apiPost } from "../lib/api";
+import { useRealtime } from "../lib/useRealtime";
 import type { AuditItem, BackupRecord, RuntimeStatus, ServerRecord } from "../lib/types";
 
 type Props = { selectedServerId: string; setSelectedServerId: (id: string) => void };
@@ -36,22 +37,23 @@ export function Dashboard({ selectedServerId, setSelectedServerId }: Props) {
     } catch (err) { setError((err as Error).message); }
   }
 
-  useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, [selectedServerId]);
-  useEffect(() => {
-    const ws = new WebSocket(getWebSocketUrl());
-    ws.onmessage = (event) => {
-      const raw = JSON.parse(event.data);
-      setEvents((prev) => [`${raw.createdAt} ${raw.type}`, ...prev].slice(0, 10));
-      if (raw.type === "server.status") load();
-      if (raw.type === "server.log" && raw.serverId === selectedServerId) setLogs((prev) => [...prev, raw.payload.line].slice(-120));
-    };
-    return () => ws.close();
-  }, [selectedServerId]);
+  // Status changes arrive over the WebSocket; the poll is only a fallback, so it can be slow.
+  useEffect(() => { load(); const t = setInterval(load, 15_000); return () => clearInterval(t); }, [selectedServerId]);
+  useRealtime((raw) => {
+    setEvents((prev) => [`${raw.createdAt} ${raw.type}`, ...prev].slice(0, 10));
+    if (raw.type === "server.status" && raw.payload?.serverId) {
+      const next = raw.payload as RuntimeStatus;
+      setStatuses((prev) => prev.some((item) => item.serverId === next.serverId) ? prev.map((item) => item.serverId === next.serverId ? next : item) : [...prev, next]);
+    }
+    if (raw.type === "server.log" && raw.serverId === selectedServerId) setLogs((prev) => [...prev, raw.payload.line].slice(-120));
+  });
 
   async function action(kind: "start" | "stop" | "restart") {
     if (!selectedServerId) return;
-    await apiPost(`/api/servers/${selectedServerId}/${kind}`);
-    await load();
+    try {
+      await apiPost(`/api/servers/${selectedServerId}/${kind}`);
+      await load();
+    } catch (err) { setError((err as Error).message); }
   }
 
   return (
@@ -82,7 +84,7 @@ export function Dashboard({ selectedServerId, setSelectedServerId }: Props) {
 
       <section className="two-column">
         <div className="panel glass"><h2>Live logs</h2><pre className="logbox">{logs.length ? logs.join("\n") : "No log lines captured yet."}</pre></div>
-        <div className="panel glass"><h2>Realtime events</h2><div className="list compact">{events.map((e) => <div key={e}>{e}</div>)}</div><h2>Recent audit</h2><div className="list compact">{audit.map((item) => <div key={item.id}><strong>{item.action}</strong><span>{item.target}</span></div>)}</div></div>
+        <div className="panel glass"><h2>Realtime events</h2><div className="list compact">{events.map((e, index) => <div key={`${index}-${e}`}>{e}</div>)}</div><h2>Recent audit</h2><div className="list compact">{audit.map((item) => <div key={item.id}><strong>{item.action}</strong><span>{item.target}</span></div>)}</div></div>
       </section>
     </div>
   );

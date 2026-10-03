@@ -279,7 +279,6 @@ export async function modRoutes(app: FastifyInstance) {
     try {
       const { serverId } = request.params as { serverId: string };
       const result = await analyzeMods(serverId);
-      writeAudit({ serverId, action: "mods.diagnostics", target: "mods", metadata: result.summary });
       return result;
     } catch (error) { return sendError(reply, error); }
   });
@@ -289,7 +288,6 @@ export async function modRoutes(app: FastifyInstance) {
     try {
       const { serverId } = request.params as { serverId: string };
       const result = await keySyncPlan(serverId);
-      writeAudit({ serverId, action: "mods.key_sync.plan", target: result.serverKeysPath, metadata: { copyCount: result.copyCount, missingModKeys: result.missingModKeys.length } });
       return result;
     } catch (error) { return sendError(reply, error); }
   });

@@ -136,7 +136,6 @@ export async function advancedRoutes(app: FastifyInstance) {
       if (backups === 0) findings.push({ severity: "warn", title: "No backups recorded", detail: "Run a manual backup before editing config/economy files." });
       if (!findings.length) findings.push({ severity: "ok", title: "No obvious issue detected", detail: "Doctor/Readiness/Safety tests still remain the source of truth." });
       const answer = { mode: "deterministic-local-analyzer", question: input.question, status, economy, backups, findings };
-      writeAudit({ serverId, action: "ai.analyze.local", target: "diagnostics", metadata: { question: input.question, findingCount: findings.length } });
       return answer;
     } catch (error) { return sendError(reply, error); }
   });

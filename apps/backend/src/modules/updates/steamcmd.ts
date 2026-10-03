@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execa } from "execa";
 import { WORKSHOP_STEAMCMD_TIMEOUT_MS } from "../../shared/env.js";
+import { redactSteamCmdArgs } from "./auth.js";
 
 export const DAYZ_DEDICATED_SERVER_APP_ID = "223350";
 export const DAYZ_WORKSHOP_APP_ID = "221100";
@@ -38,29 +39,7 @@ let lastStartedAt: string | undefined;
 let lastFinishedAt: string | undefined;
 
 function redactCommand(file: string, args: string[]) {
-  const redacted: string[] = [];
-  let loginField = 0;
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === "+login") {
-      redacted.push(arg);
-      loginField = 1;
-      continue;
-    }
-    if (loginField > 0) {
-      if (arg.startsWith("+")) {
-        loginField = 0;
-        redacted.push(arg);
-        continue;
-      }
-      redacted.push(loginField === 1 && arg === "anonymous" ? "anonymous" : loginField === 1 ? "<steam-user>" : "<steam-secret>");
-      loginField += 1;
-      if (loginField > 3) loginField = 0;
-      continue;
-    }
-    redacted.push(arg);
-  }
-  return `${file} ${redacted.join(" ")}`;
+  return `${file} ${redactSteamCmdArgs(args).join(" ")}`;
 }
 
 export function getSteamCmdQueueState(): SteamCmdQueueState {

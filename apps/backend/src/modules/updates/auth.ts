@@ -2,6 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 
+// Steam account names are letters, digits and a few separators. The value is echoed into a generated
+// .cmd helper, so anything with shell metacharacters (& | < > ^ % " ...) must never get that far.
+export const STEAM_USERNAME_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/;
+
 export const steamAuthSchema = z.object({
   steamLoginMode: z.enum(["anonymous", "user"]).optional(),
   steamUsername: z.string().trim().optional().default(""),

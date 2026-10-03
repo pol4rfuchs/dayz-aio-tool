@@ -1,11 +1,12 @@
+import { splitLaunchParams } from "../../shared/launchParams.js";
 import type { FastifyInstance } from "fastify";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { z } from "zod";
-import { getSteamCmdQueueState, runSteamCmd as runSteamCmdSerialized } from "./steamcmd.js";
-import { buildSteamAuthChecks, buildSteamCmdArgs, redactSteamCmdArgs, redactSteamCmdOutputTail, resolveSteamLogin, steamAuthQuerySchema, steamAuthSchema } from "./auth.js";
+import { DAYZ_DEDICATED_SERVER_APP_ID, DAYZ_WORKSHOP_APP_ID, getSteamCmdQueueState, parseSteamCmdOutput, runSteamCmd as runSteamCmdSerialized, steamFailureReason } from "./steamcmd.js";
+import { STEAM_USERNAME_PATTERN, buildSteamAuthChecks, buildSteamCmdArgs, redactSteamCmdArgs, redactSteamCmdOutputTail, resolveSteamLogin, steamAuthQuerySchema, steamAuthSchema } from "./auth.js";
 import { requireServer } from "../servers/repository.js";
 import { getRuntimeStatus } from "../process/service.js";
 import { sendError } from "../../shared/errors.js";
@@ -14,11 +15,9 @@ import { broadcast } from "../realtime/hub.js";
 import { getDb } from "../../db/database.js";
 import { getServerExeSnapshot, readAppManifestSummary, serverExeChanged } from "./verification.js";
 
-const DAYZ_DEDICATED_SERVER_APP_ID = "223350";
-const DAYZ_WORKSHOP_APP_ID = "221100";
 const UPDATE_TIMEOUT_MS = 60 * 60_000;
 const steamLoginConsoleSchema = z.object({
-  steamUsername: z.string().trim().min(1, "Steam username is required"),
+  steamUsername: z.string().trim().min(1, "Steam username is required").regex(STEAM_USERNAME_PATTERN, "Steam username may only contain letters, digits, '_', '.' and '-'"),
   keepOpen: z.boolean().optional().default(true)
 });
 
@@ -30,6 +29,7 @@ function safeBatchArg(value: string) {
 async function launchSteamCmdLoginConsole(steamcmdPath: string, steamUsername: string, keepOpen = true) {
   const username = safeBatchArg(steamUsername);
   if (!username) throw new Error("Steam username is required");
+  if (!STEAM_USERNAME_PATTERN.test(username)) throw Object.assign(new Error("Steam username contains unsupported characters."), { statusCode: 400 });
   if (!await exists(steamcmdPath)) throw new Error(`SteamCMD not found: ${steamcmdPath}`);
 
   const steamcmdRoot = path.dirname(steamcmdPath);
@@ -111,33 +111,6 @@ async function launchSteamCmdLoginConsole(steamcmdPath: string, steamUsername: s
   };
 }
 
-function parseSteamCmdOutput(output: string) {
-  const text = String(output || "");
-  const findings: string[] = [];
-  const add = (code: string, pattern: RegExp) => { if (pattern.test(text)) findings.push(code); };
-  add("no_subscription", /No subscription/i);
-  add("update_start_timeout", /Timed out waiting for update to start/i);
-  add("access_denied", /Access Denied/i);
-  add("no_connection", /No connection/i);
-  add("disk_write_failure", /disk write failure|content file locked|file locked/i);
-  add("steam_guard_required", /Steam Guard|Two-factor|2FA|steamguard/i);
-  add("login_failed", /FAILED with result code|Invalid Password|Account Logon Denied|LogonFailure|login failure/i);
-  const hardFailure = findings.some((f) => ["no_subscription", "update_start_timeout", "access_denied", "no_connection", "disk_write_failure", "steam_guard_required", "login_failed"].includes(f));
-  return { findings, hardFailure, hasSuccess: /Success! App '\d+' fully installed/i.test(text) };
-}
-
-function steamFailureReason(exitCode: number, analysis: ReturnType<typeof parseSteamCmdOutput>) {
-  if (exitCode !== 0) return "steamcmd_exit_nonzero";
-  if (analysis.findings.includes("no_subscription")) return "steamcmd_no_subscription";
-  if (analysis.findings.includes("update_start_timeout")) return "steamcmd_update_start_timeout";
-  if (analysis.findings.includes("access_denied")) return "steamcmd_access_denied";
-  if (analysis.findings.includes("no_connection")) return "steamcmd_no_connection";
-  if (analysis.findings.includes("disk_write_failure")) return "steamcmd_disk_write_failure";
-  if (analysis.findings.includes("steam_guard_required")) return "steamcmd_steam_guard_required";
-  if (analysis.findings.includes("login_failed")) return "steamcmd_login_failed";
-  return undefined;
-}
-
 type UpdateJob = {
   id: string;
   serverId: string;
@@ -168,7 +141,7 @@ function rememberJob(job: UpdateJob) {
   jobs.set(job.id, job);
   const all = [...jobs.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   while (all.length > 50) {
-    const index = all.findIndex((candidate) => candidate.status !== "running");
+    const index = all.findIndex((candidate) => (candidate.status === "completed" || candidate.status === "failed"));
     if (index < 0) break;
     const [old] = all.splice(index, 1);
     if (old) jobs.delete(old.id);
@@ -210,7 +183,7 @@ function workshopStagingRoot(server: any) {
 }
 
 function parseLaunchParamValues(params: string, name: "mod" | "serverMod") {
-  const tokens = params.match(/(?:[^\s"]+|"[^"]*")+/g)?.map((arg) => arg.replace(/^"|"$/g, "")) ?? [];
+  const tokens = splitLaunchParams(params);
   const out: string[] = [];
   for (const token of tokens) {
     const match = token.match(new RegExp(`^-?${name}=?(.*)$`, "i"));

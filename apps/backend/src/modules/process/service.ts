@@ -1,3 +1,4 @@
+import { splitLaunchParams } from "../../shared/launchParams.js";
 import { execa, execaCommand } from "execa";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -62,9 +63,6 @@ function pushLog(serverId: string, line: string) {
   broadcast("server.log", { line }, serverId);
 }
 
-function splitLaunchParams(params: string) {
-  return params.trim().length ? params.match(/(?:[^\s"]+|"[^"]*")+/g)?.map((arg) => arg.replace(/^"|"$/g, "")) ?? [] : [];
-}
 
 function isPidAlive(pid?: number | null) {
   if (!pid) return false;

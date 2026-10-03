@@ -9,7 +9,8 @@ import { parseTypesXml } from "../economy/parser.js";
 import { requireServer } from "../servers/repository.js";
 
 const dayNightSchema = z.object({
-  fullCycleMinutes: z.number().min(10).max(1440).default(240),
+  // serverTimeAcceleration = 1440 / fullCycleMinutes and DayZ caps it at 64, so 1440 / 64 = 22.5 is the floor.
+  fullCycleMinutes: z.number().min(22.5).max(1440).default(240),
   nightSpeedMultiplier: z.number().min(0.1).max(64).default(1),
   serverTimePersistent: z.boolean().default(true)
 });
@@ -93,7 +94,7 @@ export async function toolRoutes(app: FastifyInstance) {
       const url = new URL("https://api.steampowered.com/ISteamUser/GetPlayerBans/v1/");
       url.searchParams.set("key", STEAM_WEB_API_KEY);
       url.searchParams.set("steamids", input.steamIds.join(","));
-      const response = await fetch(url, { method: "GET" });
+      const response = await fetch(url, { method: "GET", signal: AbortSignal.timeout(10_000) });
       if (!response.ok) return reply.code(response.status).send({ ok: false, configured: true, error: `Steam API returned ${response.status}` });
       const payload = await response.json() as SteamBanPayload;
       return { ok: true, configured: true, players: payload.players ?? [] };

@@ -2,7 +2,8 @@ import { AlertTriangle, Clock, Copy, Network, Play, Power, RefreshCcw, Server, S
 import { useEffect, useMemo, useState } from "react";
 import { ServerSelect } from "../components/ServerSelect";
 import { StatusCard } from "../components/StatusCard";
-import { apiGet, apiPost, getWebSocketUrl } from "../lib/api";
+import { apiGet, apiPost } from "../lib/api";
+import { useRealtime } from "../lib/useRealtime";
 import type { RuntimeStatus, ServerRecord } from "../lib/types";
 
 type Props = { selectedServerId: string; setSelectedServerId: (id: string) => void };
@@ -90,17 +91,16 @@ export function ServerControl({ selectedServerId, setSelectedServerId }: Props) 
     }
   }
 
-  useEffect(() => { void load(); const t = setInterval(() => void load(), 3000); return () => clearInterval(t); }, [selectedServerId]);
+  // /control spawns netstat and /start/preflight scans the server folder, so poll them slowly and
+  // let WebSocket pushes keep status and log lines current in between.
+  useEffect(() => { void load(); const t = setInterval(() => void load(), 10_000); return () => clearInterval(t); }, [selectedServerId]);
 
-  useEffect(() => {
-    const ws = new WebSocket(getWebSocketUrl());
-    ws.onmessage = (event) => {
-      const raw = JSON.parse(event.data);
-      if (raw.type === "server.status") void load();
-      if (raw.type === "server.log" && raw.serverId === selectedServerId) setLogs((prev) => [...prev, raw.payload.line].slice(-180));
-    };
-    return () => ws.close();
-  }, [selectedServerId]);
+  useRealtime((raw) => {
+    if (raw.type === "server.status" && raw.payload?.serverId === selectedServerId) {
+      setSummary((prev) => prev && prev.serverId === raw.payload.serverId ? { ...prev, status: raw.payload as RuntimeStatus } : prev);
+    }
+    if (raw.type === "server.log" && raw.serverId === selectedServerId) setLogs((prev) => [...prev, raw.payload.line].slice(-180));
+  });
 
   async function runAction(kind: "start" | "stop" | "restart", label: string) {
     if (!selectedServerId) return;
