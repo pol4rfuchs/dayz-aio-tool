@@ -8,6 +8,10 @@ import { getLogs } from "../process/service.js";
 
 const LOG_FILE = /(?:^|[-_])(script|crash|error|server|console)|\.rpt$|\.adm$|\.log$/i;
 
+// Only plain-text log files may be read through the API. Without this, any file below the server root
+// (serverDZ.cfg, BEServer_x64.cfg with the RCON password, ...) could be fetched via ?path=.
+export const READABLE_LOG_FILE = /\.(rpt|adm|log|txt)$/i;
+
 async function safeStat(file: string) { try { return await fs.lstat(file); } catch { return null; } }
 
 async function collectLogFiles(root: string, max = 500) {
@@ -26,7 +30,7 @@ async function collectLogFiles(root: string, max = 500) {
       if (stat.isDirectory()) {
         if (/node_modules|steamapps|workshop|backup|backups/i.test(entry.name)) continue;
         await walk(full);
-      } else if (stat.isFile() && LOG_FILE.test(entry.name)) {
+      } else if (stat.isFile() && LOG_FILE.test(entry.name) && READABLE_LOG_FILE.test(entry.name)) {
         files.push({ path: full, name: entry.name, size: stat.size, modifiedAt: stat.mtime.toISOString() });
       }
     }
@@ -69,6 +73,7 @@ export async function logRoutes(app: FastifyInstance) {
       const bytes = Math.min(Math.max(Number((request.query as any).bytes ?? 24000), 1000), 250000);
       const server = requireServer(serverId);
       const safe = assertInsideRoot(server.rootPath, file);
+      if (!READABLE_LOG_FILE.test(path.basename(safe))) throw Object.assign(new Error("Only .rpt, .adm, .log and .txt files can be read."), { statusCode: 400 });
       return { path: safe, tail: await tail(safe, bytes), bytes };
     } catch (error) { return sendError(reply, error); }
   });

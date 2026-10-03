@@ -6,6 +6,7 @@ import { sendError } from "../../shared/errors.js";
 import { assertInsideRoot } from "../../shared/pathGuard.js";
 import { requireServer } from "../servers/repository.js";
 import { getLogs } from "../process/service.js";
+import { READABLE_LOG_FILE } from "../logs/routes.js";
 import { writeAudit } from "../audit/service.js";
 
 const CRASH_FILE = /(?:crash|exception|dump|mdmp|rpt|script).*\.(?:log|rpt|mdmp|txt)$/i;
@@ -170,6 +171,7 @@ export async function crashRoutes(app: FastifyInstance) {
       const file = String((request.query as any).path ?? "");
       const server = requireServer(serverId);
       const safe = assertInsideRoot(server.rootPath, file);
+      if (!READABLE_LOG_FILE.test(path.basename(safe))) throw Object.assign(new Error("Only .rpt, .adm, .log and .txt files can be read."), { statusCode: 400 });
       const content = await tail(safe);
       return { path: safe, tail: content, classification: classifyCrashText(content) };
     } catch (error) { return sendError(reply, error); }

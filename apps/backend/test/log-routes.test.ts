@@ -100,3 +100,22 @@ test("live log file tail reads only files inside the server root", async (t) => 
   assert.equal(blocked.statusCode, 400);
   assert.match(blocked.json().error, /Blocked unsafe path outside root/);
 });
+
+test("live log file endpoint refuses non-log files inside the server root", async (t) => {
+  initDatabase();
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "dayz-aio-logs-root-"));
+  t.after(async () => { await fs.rm(root, { recursive: true, force: true }); });
+
+  const profilePath = path.join(root, "profiles");
+  await fs.mkdir(profilePath, { recursive: true });
+  const cfg = path.join(root, "serverDZ.cfg");
+  await fs.writeFile(cfg, "passwordAdmin = \"secret\";", "utf8");
+  insertServer({ id: "logs-cfg", rootPath: root, profilePath, missionPath: path.join(root, "mpmissions", "x") });
+
+  const app = await buildLogTestApp();
+  t.after(async () => { await app.close(); });
+
+  const res = await app.inject({ method: "GET", url: `/api/servers/logs-cfg/live-logs/file?path=${encodeURIComponent(cfg)}&bytes=1000` });
+  assert.equal(res.statusCode, 400);
+  assert.match(res.json().error, /Only \.rpt/);
+});
