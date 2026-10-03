@@ -38,7 +38,7 @@ function rememberJob(job: WorkshopJob) {
   jobs.set(job.id, job);
   const all = [...jobs.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   while (all.length > WORKSHOP_JOB_HISTORY_LIMIT) {
-    const index = all.findIndex((candidate) => candidate.status !== "running");
+    const index = all.findIndex((candidate) => (candidate.status === "completed" || candidate.status === "failed"));
     if (index < 0) break;
     const [old] = all.splice(index, 1);
     if (old) jobs.delete(old.id);
@@ -93,9 +93,6 @@ function enqueueWorkshopJob(job: WorkshopJob, runner: () => Promise<void>) {
       updateJob(job, { status: "failed", error: message, finishedAt: new Date().toISOString() });
       writeAudit({ serverId: job.serverId, action: "workshop.job.failed", target: job.action, metadata: { jobId: job.id, error: message } });
     }
-  }, async () => {
-    updateJob(job, { status: "running" });
-    await runner();
   });
   return job;
 }
