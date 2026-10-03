@@ -123,13 +123,35 @@ export async function schedulerRoutes(app: FastifyInstance) {
       const { id } = request.params as { id: string };
       const row = getDb().prepare("SELECT server_id as serverId, action, name FROM schedules WHERE id = ?").get(id) as any;
       if (!row) return reply.code(404).send({ error: "Schedule not found" });
-      return await runScheduleAction(row.serverId, row.action);
+      const result = await runScheduleAction(row.serverId, row.action);
+      writeAudit({ serverId: row.serverId, action: "schedule.run.manual", target: row.name, metadata: { result } });
+      return result;
     } catch (error) { return sendError(reply, error); }
   });
 
-  app.delete("/api/schedules/:id", async (request) => {
+  app.patch("/api/schedules/:id", async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const input = z.object({ enabled: z.boolean() }).parse(request.body);
+      const row = getDb().prepare("SELECT server_id as serverId, name, interval_minutes as intervalMinutes, at_time as atTime FROM schedules WHERE id = ?").get(id) as
+        { serverId: string; name: string; intervalMinutes?: number | null; atTime?: string | null } | undefined;
+      if (!row) return reply.code(404).send({ error: "Schedule not found" });
+      // Re-enabling recomputes the next run from now so a long-disabled schedule does not fire instantly.
+      const nextRun = input.enabled ? computeNextRun(row) : null;
+      const now = new Date().toISOString();
+      getDb().prepare("UPDATE schedules SET enabled = ?, next_run_at = ?, failure_count = 0, last_error = NULL, updated_at = ? WHERE id = ?")
+        .run(input.enabled ? 1 : 0, nextRun, now, id);
+      writeAudit({ serverId: row.serverId, action: input.enabled ? "schedule.enable" : "schedule.disable", target: row.name });
+      return { ok: true, id, enabled: input.enabled, nextRunAt: nextRun };
+    } catch (error) { return sendError(reply, error); }
+  });
+
+  app.delete("/api/schedules/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
+    const row = getDb().prepare("SELECT server_id as serverId, name FROM schedules WHERE id = ?").get(id) as { serverId: string; name: string } | undefined;
+    if (!row) return reply.code(404).send({ error: "Schedule not found" });
     getDb().prepare("DELETE FROM schedules WHERE id = ?").run(id);
+    writeAudit({ serverId: row.serverId, action: "schedule.delete", target: row.name });
     return { ok: true };
   });
 }
