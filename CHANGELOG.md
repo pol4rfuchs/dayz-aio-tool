@@ -2,6 +2,18 @@
 
 Alle nennenswerten, versionierten Änderungen an DayZ AIO Server Manager. Format grob angelehnt an [Keep a Changelog](https://keepachangelog.com/), neueste Einträge oben.
 
+## Unreleased — Code review block 1
+
+- Repo: added `.gitignore` (secrets, data, logs, build output); stale `dist/` folders are no longer tracked.
+- API: Zod validation errors return 400 (was 500); CORS rejections return 403; `PATCH /api/servers/:id` no longer resets omitted fields to defaults.
+- Security: API key redacted from request logs; SteamCMD login helper username validated (shell injection); live-log/crash file endpoints only serve `.rpt/.adm/.log/.txt`.
+- Safety: `tests/safety` and `tests/start-stop` refuse to run against a running server; frontend asks for confirmation before restore/delete/kick/ban.
+- Backups: no empty backup folders on failure; new files (e.g. first `messages.xml`) can be written.
+- Scheduler: enable/disable (`PATCH /api/schedules/:id`), manual runs and deletes are audited.
+- Performance: DB indexes and pragmas, runtime log rotation, no per-line `mkdirSync`, WebSocket-driven status with slower polling, lazy-loaded pages.
+- Fixes: `-mod="@a;@b"` launch parameter quoting, day/night calculator limit (DayZ max 64), analytics category counts.
+- CI: least-privilege permissions, concurrency, pnpm cache, tests are type-checked, frontend no longer built twice.
+
 ## v0.5.17 — SteamCMD Secret Redaction Coverage
 
 - Added regression coverage for `+login <user> <password> <guard>` redaction.
