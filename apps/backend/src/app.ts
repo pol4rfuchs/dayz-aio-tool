@@ -28,20 +28,30 @@ import { toolRoutes } from "./modules/tools/routes.js";
 import { wipeRoutes } from "./modules/wipe/routes.js";
 import { heartbeatAllServers } from "./modules/process/service.js";
 import { CORS_ORIGINS, HEALTH_TICK_MS, REQUEST_BODY_LIMIT_BYTES, VERSION, assertSecurityConfiguration } from "./shared/env.js";
-import { registerBackendFileLogging } from "./shared/logging.js";
+import { redactUrlSecrets, registerBackendFileLogging } from "./shared/logging.js";
+import { registerErrorHandler } from "./shared/errors.js";
 import { registerSecurityHooks, securityRoutes } from "./modules/security/auth.js";
 
 export async function buildApp() {
   assertSecurityConfiguration();
   initDatabase();
 
-  const app = Fastify({ logger: true, bodyLimit: REQUEST_BODY_LIMIT_BYTES });
+  const app = Fastify({
+    logger: {
+      serializers: {
+        // The browser WebSocket handshake carries the API key in the query string; never log it.
+        req: (request) => ({ method: request.method, url: redactUrlSecrets(request.url), host: request.host, remoteAddress: request.ip })
+      }
+    },
+    bodyLimit: REQUEST_BODY_LIMIT_BYTES
+  });
+  registerErrorHandler(app);
   registerBackendFileLogging(app);
   await app.register(cors, {
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       if (CORS_ORIGINS.includes(origin)) return callback(null, true);
-      return callback(new Error(`CORS origin not allowed: ${origin}`), false);
+      return callback(Object.assign(new Error(`CORS origin not allowed: ${origin}`), { statusCode: 403 }), false);
     },
     allowedHeaders: ["content-type", "authorization", "x-api-key"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
@@ -81,8 +91,14 @@ export async function buildApp() {
 
   app.get("/health", async () => ({ ok: true, service: "dayz-aio-backend", version: VERSION, authRequired: true }));
 
-  const heartbeatTimer = setInterval(() => heartbeatAllServers(), HEALTH_TICK_MS);
-  const scheduleTimer = setInterval(() => { void tickSchedules(); }, 30_000);
+  // A throwing timer callback would hit the uncaughtException handler and shut the whole backend down.
+  const heartbeatTimer = setInterval(() => {
+    try { heartbeatAllServers(); }
+    catch (error) { app.log.error({ err: error }, "Server heartbeat failed"); }
+  }, HEALTH_TICK_MS);
+  const scheduleTimer = setInterval(() => {
+    tickSchedules().catch((error) => app.log.error({ err: error }, "Schedule tick failed"));
+  }, 30_000);
   app.addHook("onClose", async () => {
     clearInterval(heartbeatTimer);
     clearInterval(scheduleTimer);

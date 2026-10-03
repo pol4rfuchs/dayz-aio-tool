@@ -38,10 +38,15 @@ const LOG_FLUSH_INTERVAL_MS = 250;
 let pendingLines: string[] = [];
 let flushTimer: NodeJS.Timeout | null = null;
 let flushing = false;
+let bytesSinceRotationCheck = 0;
+const ROTATION_CHECK_EVERY_BYTES = 256 * 1024;
+
+export function redactUrlSecrets(url: string) {
+  return url.replace(/([?&]apiKey=)[^&\s]+/gi, "$1***");
+}
 
 function sanitizeForBackendLog(value: string) {
-  return value
-    .replace(/([?&]apiKey=)[^&\s]+/gi, "$1***")
+  return redactUrlSecrets(value)
     .replace(/(authorization:\s*bearer\s+)[^\s,}]+/gi, "$1***")
     .replace(/(x-api-key["']?\s*[:=]\s*["']?)[^"'\s,}]+/gi, "$1***");
 }
@@ -54,6 +59,12 @@ async function flushBackendLogs() {
   try {
     await fs.promises.mkdir(path.dirname(BACKEND_LOG_FILE), { recursive: true });
     await fs.promises.appendFile(BACKEND_LOG_FILE, lines, "utf8");
+    // Rotation used to happen only at boot, so a long-running service never rotated.
+    bytesSinceRotationCheck += lines.length;
+    if (bytesSinceRotationCheck >= ROTATION_CHECK_EVERY_BYTES) {
+      bytesSinceRotationCheck = 0;
+      rotateFileIfNeededSync(BACKEND_LOG_FILE, BACKEND_LOG_MAX_SIZE_BYTES, BACKEND_LOG_MAX_FILES);
+    }
   } catch {
     // File logging must never break API handling.
   } finally {
@@ -73,7 +84,7 @@ function scheduleFlush() {
 
 export function appendBackendLog(event: string, payload: Record<string, unknown> = {}) {
   try {
-    ensureRuntimeLogDirsSync();
+    // Directories are created at boot (registerBackendFileLogging) and again by the async flush.
     const row = sanitizeForBackendLog(JSON.stringify({ ts: new Date().toISOString(), event, ...payload }));
     pendingLines.push(`${row}\n`);
     scheduleFlush();
