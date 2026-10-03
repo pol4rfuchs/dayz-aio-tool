@@ -24,7 +24,21 @@ const createServerSchema = z.object({
   workshopAppId: z.string().optional().default("221100")
 });
 
-const updateServerSchema = createServerSchema.partial();
+// Deliberately not createServerSchema.partial(): Zod 4 applies .default() inside optional fields,
+// so a PATCH of just { name } would silently reset profilePath, launchParams and workshopAppId.
+const updateServerSchema = z.object({
+  name: z.string().min(1).optional(),
+  rootPath: z.string().min(1).optional(),
+  profilePath: z.string().optional(),
+  executablePath: z.string().optional(),
+  missionPath: z.string().optional(),
+  launchParams: z.string().optional(),
+  rconHost: z.string().optional().nullable(),
+  rconPort: z.number().int().positive().optional().nullable(),
+  rconPassword: z.string().optional().nullable(),
+  steamcmdPath: z.string().optional().nullable(),
+  workshopAppId: z.string().optional()
+});
 
 function publicServer(server: any) {
   return { ...server, rconPassword: maskSecret(server.rconPassword) };
