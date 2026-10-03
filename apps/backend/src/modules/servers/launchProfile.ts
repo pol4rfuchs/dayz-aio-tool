@@ -1,3 +1,4 @@
+import { splitLaunchParams } from "../../shared/launchParams.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -89,9 +90,6 @@ function quoteParam(name: string, value: string | number) {
   return /\s/.test(token) ? `"${token.replace(/"/g, "\\\"")}"` : token;
 }
 
-function splitLaunchParams(params: string) {
-  return params.trim().length ? params.match(/(?:[^\s"]+|"[^"]*")+/g)?.map((arg) => arg.replace(/^"|"$/g, "")) ?? [] : [];
-}
 
 function mergeLaunchParams(base: string, additions: string[]) {
   const tokens = splitLaunchParams(base);

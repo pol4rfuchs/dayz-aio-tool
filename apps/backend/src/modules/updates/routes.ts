@@ -1,3 +1,4 @@
+import { splitLaunchParams } from "../../shared/launchParams.js";
 import type { FastifyInstance } from "fastify";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -210,7 +211,7 @@ function workshopStagingRoot(server: any) {
 }
 
 function parseLaunchParamValues(params: string, name: "mod" | "serverMod") {
-  const tokens = params.match(/(?:[^\s"]+|"[^"]*")+/g)?.map((arg) => arg.replace(/^"|"$/g, "")) ?? [];
+  const tokens = splitLaunchParams(params);
   const out: string[] = [];
   for (const token of tokens) {
     const match = token.match(new RegExp(`^-?${name}=?(.*)$`, "i"));
