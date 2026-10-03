@@ -56,7 +56,6 @@ export async function communityRoutes(app: FastifyInstance) {
           ? "DZSALModServer candidate detected. Verify that the launcher server package is configured for your public server listing."
           : "DZSALModServer was not detected in the server root. DZSA Launcher auto-mod sync may not work until it is installed/configured."
       };
-      writeAudit({ serverId, action: "community.dzsa_check", target: root, metadata: result });
       return result;
     } catch (error) { return sendError(reply, error); }
   });

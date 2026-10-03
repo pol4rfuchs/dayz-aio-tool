@@ -79,7 +79,6 @@ export async function persistenceRoutes(app: FastifyInstance) {
       const warnings = [];
       if (status.pidAlive) warnings.push("Server appears to be running. Stop it before quarantine/restore actions.");
       if (!candidates.length) warnings.push("No storage_N folder found in mission path.");
-      writeAudit({ serverId, action: "persistence.scan", target: missionPath, metadata: { candidates: candidates.length, quarantines: quarantines.length } });
       return { ok: true, missionPath, running: Boolean(status.pidAlive), candidates, quarantines, warnings };
     } catch (error) { return sendError(reply, error); }
   });
