@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# secrets and local runtime state
+.env
+.env.*
+!.env.example
+data/
+logs/
+.dayz-aio-runtime/
+tools/
+
+# misc
+*.log
+.DS_Store
