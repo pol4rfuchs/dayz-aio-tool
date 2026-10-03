@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { z } from "zod";
 import { getSteamCmdQueueState, runSteamCmd as runSteamCmdSerialized } from "./steamcmd.js";
-import { buildSteamAuthChecks, buildSteamCmdArgs, redactSteamCmdArgs, redactSteamCmdOutputTail, resolveSteamLogin, steamAuthQuerySchema, steamAuthSchema } from "./auth.js";
+import { STEAM_USERNAME_PATTERN, buildSteamAuthChecks, buildSteamCmdArgs, redactSteamCmdArgs, redactSteamCmdOutputTail, resolveSteamLogin, steamAuthQuerySchema, steamAuthSchema } from "./auth.js";
 import { requireServer } from "../servers/repository.js";
 import { getRuntimeStatus } from "../process/service.js";
 import { sendError } from "../../shared/errors.js";
@@ -19,7 +19,7 @@ const DAYZ_DEDICATED_SERVER_APP_ID = "223350";
 const DAYZ_WORKSHOP_APP_ID = "221100";
 const UPDATE_TIMEOUT_MS = 60 * 60_000;
 const steamLoginConsoleSchema = z.object({
-  steamUsername: z.string().trim().min(1, "Steam username is required"),
+  steamUsername: z.string().trim().min(1, "Steam username is required").regex(STEAM_USERNAME_PATTERN, "Steam username may only contain letters, digits, '_', '.' and '-'"),
   keepOpen: z.boolean().optional().default(true)
 });
 
@@ -31,6 +31,7 @@ function safeBatchArg(value: string) {
 async function launchSteamCmdLoginConsole(steamcmdPath: string, steamUsername: string, keepOpen = true) {
   const username = safeBatchArg(steamUsername);
   if (!username) throw new Error("Steam username is required");
+  if (!STEAM_USERNAME_PATTERN.test(username)) throw Object.assign(new Error("Steam username contains unsupported characters."), { statusCode: 400 });
   if (!await exists(steamcmdPath)) throw new Error(`SteamCMD not found: ${steamcmdPath}`);
 
   const steamcmdRoot = path.dirname(steamcmdPath);

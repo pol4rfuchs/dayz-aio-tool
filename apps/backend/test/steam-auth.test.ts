@@ -58,3 +58,9 @@ test("steam auth redacts password and Steam Guard code from command labels and o
   assert.equal(tail.includes("SuperSecretPassword123!"), false);
   assert.equal(tail.includes("ABCDE"), false);
 });
+
+test("steam username pattern rejects shell metacharacters used for .cmd helper injection", async () => {
+  const { STEAM_USERNAME_PATTERN } = await import("../src/modules/updates/auth.js");
+  for (const ok of ["fox", "My_User-1", "a.b"]) assert.ok(STEAM_USERNAME_PATTERN.test(ok), ok);
+  for (const bad of ["x & calc", "x|y", "x\"y", "%PATH%", "a^b", "a<b", "", "a b"]) assert.ok(!STEAM_USERNAME_PATTERN.test(bad), bad);
+});
