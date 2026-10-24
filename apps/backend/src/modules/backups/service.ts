@@ -111,7 +111,7 @@ export async function restoreBackup(serverId: string, backupId: string) {
   const metadata = JSON.parse(await fs.readFile(path.join(row.path, "metadata.json"), "utf8")) as { files: Array<{ sourcePath: string; backupFile: string }> };
   for (const file of metadata.files) {
     const sourcePath = assertInsideRoot(server.rootPath, file.sourcePath);
-    const backupFile = path.join(row.path, file.backupFile);
+    const backupFile = assertInsideRoot(row.path, path.join(row.path, file.backupFile));
     await fs.mkdir(path.dirname(sourcePath), { recursive: true });
     await fs.copyFile(backupFile, sourcePath);
   }

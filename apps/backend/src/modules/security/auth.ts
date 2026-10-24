@@ -92,7 +92,7 @@ function extractToken(request: FastifyRequest) {
 
   // Browser WebSocket clients cannot set custom headers during the handshake; allow query token for /ws only.
   // Do not expose raw reverse-proxy access logs when using this mode, because query strings can contain the key.
-  if (request.url.startsWith("/ws")) {
+  if (request.url.split("?")[0] === "/ws") {
     try {
       const url = new URL(request.url, "http://localhost");
       return url.searchParams.get("apiKey") ?? undefined;
@@ -114,10 +114,8 @@ function tokenMatches(input?: string) {
 
 function isPublicRoute(request: FastifyRequest) {
   if (request.method === "OPTIONS") return true;
-  if (request.url === "/health") return true;
-  if (request.url === "/favicon.ico") return true;
-  if (request.url.startsWith("/api/auth/status")) return true;
-  return false;
+  const pathname = request.url.split("?")[0];
+  return pathname === "/health" || pathname === "/favicon.ico" || pathname === "/api/auth/status";
 }
 
 export async function securityRoutes(app: FastifyInstance) {

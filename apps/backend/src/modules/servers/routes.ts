@@ -8,6 +8,7 @@ import { listServers, getServer } from "./repository.js";
 import { writeAudit } from "../audit/service.js";
 import { detectExistingServer } from "./detect.js";
 import { detectLaunchProfile } from "./launchProfile.js";
+import { assertInsideRoot } from "../../shared/pathGuard.js";
 import { encryptSecret, maskSecret } from "../../shared/secrets.js";
 
 const createServerSchema = z.object({
@@ -132,6 +133,18 @@ export async function serverRoutes(app: FastifyInstance) {
       const current = getServer(id);
       if (!current) return reply.code(404).send({ error: "Server not found" });
       const input = updateServerSchema.parse(request.body);
+      if (input.rootPath !== undefined && input.rootPath !== current.rootPath) {
+        const detected = await detectExistingServer({ ...input, rootPath: input.rootPath });
+        if (!detected.valid) return reply.code(400).send({ error: "Server path validation failed", detection: detected });
+      }
+      const nextRoot = input.rootPath ?? current.rootPath;
+      if (input.executablePath) {
+        assertInsideRoot(nextRoot, input.executablePath);
+        if (!/\.exe$/i.test(input.executablePath)) throw Object.assign(new Error("executablePath must point to an .exe file."), { statusCode: 400 });
+      }
+      for (const key of ["profilePath", "missionPath"] as const) {
+        if (input[key]) assertInsideRoot(nextRoot, input[key]!);
+      }
       const next = { ...current, ...input, updatedAt: new Date().toISOString() };
       const rconPassword = input.rconPassword === "***" ? current.rconPassword : encryptSecret(input.rconPassword ?? current.rconPassword ?? null);
       getDb().prepare(`
@@ -185,6 +198,6 @@ export async function serverRoutes(app: FastifyInstance) {
   app.get("/:id/logs", async (request) => {
     const { id } = request.params as { id: string };
     const query = request.query as { limit?: string };
-    return { lines: getLogs(id, Number(query.limit ?? 300)) };
+    return { lines: getLogs(id, Number.isFinite(Number(query.limit)) ? Number(query.limit) : 300) };
   });
 }

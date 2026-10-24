@@ -50,3 +50,23 @@ test("PATCH with an invalid body is a 400, not a 500", async () => {
   await app.close();
   closeDatabase();
 });
+
+test("PATCH rejects an executablePath outside the server root or without .exe", async () => {
+  initDatabase();
+  insertServer("srv-exe");
+  const app = await buildApp();
+  for (const executablePath of ["C:/Windows/System32/cmd.exe", "C:/dz/run.bat"]) {
+    const res = await app.inject({ method: "PATCH", url: "/api/servers/srv-exe", payload: { executablePath } });
+    assert.equal(res.statusCode, 400, executablePath);
+  }
+  const ok = await app.inject({ method: "PATCH", url: "/api/servers/srv-exe", payload: { executablePath: "C:/dz/DayZServer_x64.exe" } });
+  assert.equal(ok.statusCode, 200);
+});
+
+test("PATCH of rootPath requires a valid DayZ server directory", async () => {
+  initDatabase();
+  insertServer("srv-root");
+  const app = await buildApp();
+  const res = await app.inject({ method: "PATCH", url: "/api/servers/srv-root", payload: { rootPath: os.tmpdir() } });
+  assert.equal(res.statusCode, 400);
+});
