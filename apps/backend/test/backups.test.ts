@@ -56,3 +56,20 @@ test("writeTextFileWithBackup can create a new file and only backs up existing o
   assert.equal(await fs.readFile(target, "utf8"), "<messages>2</messages>");
   assert.equal(listBackups("bk-new").length, 1);
 });
+
+test("restoreBackup refuses a tampered metadata.json that points outside the backup folder", async () => {
+  initDatabase();
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "dayz-aio-backups-tamper-"));
+  insertServer("srv-tamper", root);
+  const file = path.join(root, "serverDZ.cfg");
+  await fs.writeFile(file, "hostname = \"x\";");
+  const backup = await createBackup({ serverId: "srv-tamper", type: "config", reason: "t", files: [file] });
+  const secret = path.join(root, "..", "dayz-aio-secret.txt");
+  await fs.writeFile(secret, "secret");
+  const metaPath = path.join(backup.path, "metadata.json");
+  const meta = JSON.parse(await fs.readFile(metaPath, "utf8"));
+  meta.files[0].backupFile = path.relative(backup.path, secret);
+  await fs.writeFile(metaPath, JSON.stringify(meta));
+  const { restoreBackup } = await import("../src/modules/backups/service.js");
+  await assert.rejects(() => restoreBackup("srv-tamper", backup.id), /outside root/);
+});

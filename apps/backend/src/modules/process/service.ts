@@ -1,5 +1,5 @@
 import { splitLaunchParams } from "../../shared/launchParams.js";
-import { execa, execaCommand } from "execa";
+import { execa } from "execa";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { getDb } from "../../db/database.js";
@@ -76,7 +76,7 @@ function isPidAlive(pid?: number | null) {
 
 async function killPid(pid: number) {
   if (process.platform === "win32") {
-    await execaCommand(`taskkill /PID ${pid} /T /F`, { reject: false });
+    await execa("taskkill", ["/PID", String(pid), "/T", "/F"], { reject: false });
   } else {
     try { process.kill(pid, "SIGTERM"); } catch { /* already dead */ }
   }
